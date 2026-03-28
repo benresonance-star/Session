@@ -10,5 +10,11 @@ export default async function BuilderPage({ params }: { params: Promise<{ id: st
     notFound();
   }
 
-  return <SessionBuilder initialSession={session} backHref={`/session/${session.session_id}`} />;
+  return (
+    <SessionBuilder
+      initialSession={session}
+      backHref={`/session/${session.session_id}`}
+      allowServerDelete
+    />
+  );
 }

@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { EditorPanel } from '@/components/ui/EditorPanel';
@@ -254,19 +255,61 @@ function syncCollapsedState(
   return nextState;
 }
 
+function CogIcon({ className = 'h-5 w-5' }: { className?: string }): JSX.Element {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"
+      />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+}
+
 function SessionBuilder({
   initialSession,
-  backHref
+  backHref,
+  allowServerDelete = false
 }: {
   initialSession: SessionDefinition;
   backHref: string;
+  allowServerDelete?: boolean;
 }): JSX.Element {
+  const router = useRouter();
   const [session, setSession] = useState<SessionDefinition>(initialSession);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [collapsedItems, setCollapsedItems] = useState<Record<string, boolean>>(() => buildCollapsedState(initialSession));
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const settingsMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!settingsMenuOpen) {
+      return;
+    }
+    function handlePointerDown(event: MouseEvent): void {
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target as Node)) {
+        setSettingsMenuOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === 'Escape') {
+        setSettingsMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [settingsMenuOpen]);
 
   const summary = useMemo(() => {
     const tags = (session.tags ?? []).join(' · ');
@@ -377,6 +420,34 @@ function SessionBuilder({
       setNotice(null);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleConfirmDeleteFromServer(): Promise<void> {
+    setDeleting(true);
+    setValidationErrors([]);
+    setNotice(null);
+    try {
+      const response = await fetch(`/api/sessions/${encodeURIComponent(session.session_id)}`, {
+        method: 'DELETE'
+      });
+      const contentType = response.headers.get('content-type') ?? '';
+      let payload: { error?: string } = {};
+      if (contentType.includes('application/json')) {
+        payload = (await response.json().catch(() => ({}))) as typeof payload;
+      }
+      if (!response.ok) {
+        setDeleteConfirmOpen(false);
+        setValidationErrors([safeServiceErrorMessage(payload.error) || `Delete failed (${response.status}).`]);
+        return;
+      }
+      setDeleteConfirmOpen(false);
+      router.push('/home');
+    } catch {
+      setDeleteConfirmOpen(false);
+      setValidationErrors(['Network error while deleting.']);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -758,21 +829,109 @@ function SessionBuilder({
           <h1 className="text-display">{session.title}</h1>
           {summary ? <div className="mt-2 text-sm text-muted">{summary}</div> : null}
         </div>
-        <div className="flex flex-wrap gap-3">
-          <ActionButton variant="ghost" onClick={() => fileInputRef.current?.click()}>
-            import JSON
-          </ActionButton>
+        <div className="flex flex-wrap items-center gap-3">
           <ActionButton variant="primary" onClick={validateCurrentSession}>
             validate
           </ActionButton>
           <ActionButton variant="primary" disabled={saving} onClick={() => void handleSaveToSupabase()}>
             {saving ? 'saving…' : 'save to Supabase'}
           </ActionButton>
-          <ActionButton variant="primary" onClick={handleExport}>
-            export JSON
-          </ActionButton>
+          <div className="relative" ref={settingsMenuRef}>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-md border border-border p-2 text-muted transition-colors hover:border-text/30 hover:text-text"
+              aria-expanded={settingsMenuOpen}
+              aria-haspopup="menu"
+              aria-label="Session file and danger actions"
+              onClick={() => setSettingsMenuOpen((open) => !open)}
+            >
+              <CogIcon />
+            </button>
+            {settingsMenuOpen ? (
+              <div
+                role="menu"
+                className="absolute right-0 z-40 mt-1 min-w-[11rem] rounded-md border border-line bg-panel py-1 text-sm shadow-none"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text"
+                  onClick={() => {
+                    setSettingsMenuOpen(false);
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  import JSON
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text"
+                  onClick={() => {
+                    setSettingsMenuOpen(false);
+                    handleExport();
+                  }}
+                >
+                  export JSON
+                </button>
+                {allowServerDelete ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full px-3 py-2 text-left text-warning transition-colors hover:bg-bg hover:text-text"
+                    onClick={() => {
+                      setSettingsMenuOpen(false);
+                      setDeleteConfirmOpen(true);
+                    }}
+                  >
+                    delete session
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
+
+      {deleteConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          role="presentation"
+          onClick={() => {
+            if (!deleting) {
+              setDeleteConfirmOpen(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-session-title"
+            className="max-w-md rounded-lg border border-line bg-panel p-6 shadow-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="delete-session-title" className="text-lg font-semibold text-text">
+              Delete session?
+            </h2>
+            <p className="mt-3 text-sm text-muted">
+              This will permanently remove this session from Supabase. You cannot undo this.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <ActionButton variant="ghost" type="button" disabled={deleting} onClick={() => setDeleteConfirmOpen(false)}>
+                cancel
+              </ActionButton>
+              <ActionButton
+                variant="danger"
+                type="button"
+                disabled={deleting}
+                onClick={() => void handleConfirmDeleteFromServer()}
+              >
+                {deleting ? 'deleting…' : 'delete'}
+              </ActionButton>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {notice ? (
         <div className="mt-4 rounded-md border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
@@ -931,6 +1090,7 @@ function SessionBuilder({
           <ActionButton onClick={() => applyUpdate((current) => addStage(current))}>+ add stage</ActionButton>
         </div>
       </div>
+
     </PageShell>
   );
 }
