@@ -12,8 +12,14 @@ import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } 
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { CogIcon } from '@/components/ui/CogIcon';
+import { safeServiceErrorMessage } from '@/lib/safe-service-error';
+import { parseImportedSession } from '@/lib/session-validation';
+import sessionDefinitionSchema from '@/schema/session-definition.schema.json';
 import type { SessionDefinition } from '@/types/session';
+
+const SCHEMA_COPY_SUCCESS = 'JSON schema copied';
 
 function GripIcon(): JSX.Element {
   return (
@@ -72,10 +78,46 @@ export function SessionList({
   const router = useRouter();
   const [items, setItems] = useState(sessions);
   const [orderError, setOrderError] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const [schemaCopyNotice, setSchemaCopyNotice] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const settingsMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setItems(sessions);
   }, [sessions]);
+
+  useEffect(() => {
+    if (!settingsMenuOpen) {
+      return;
+    }
+    function handlePointerDown(event: MouseEvent): void {
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target as Node)) {
+        setSettingsMenuOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === 'Escape') {
+        setSettingsMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [settingsMenuOpen]);
+
+  useEffect(() => {
+    if (!schemaCopyNotice) {
+      return;
+    }
+    const timer = window.setTimeout(() => setSchemaCopyNotice(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [schemaCopyNotice]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -120,15 +162,145 @@ export function SessionList({
     }
   }
 
+  async function handleImportJSON(event: ChangeEvent<HTMLInputElement>): Promise<void> {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setImportError(null);
+    setImporting(true);
+
+    try {
+      const source = await file.text();
+      const result = parseImportedSession(source);
+
+      if (!result.session) {
+        setImportError(result.errors.length ? result.errors.join('; ') : 'Invalid session file.');
+        return;
+      }
+
+      const response = await fetch('/api/sessions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(result.session)
+      });
+      const contentType = response.headers.get('content-type') ?? '';
+      let payload: { errors?: string[]; error?: string } = {};
+      if (contentType.includes('application/json')) {
+        payload = (await response.json().catch(() => ({}))) as typeof payload;
+      }
+
+      if (!response.ok) {
+        if (payload.errors?.length) {
+          setImportError(payload.errors.map((e) => safeServiceErrorMessage(e)).join('; '));
+        } else {
+          setImportError(
+            safeServiceErrorMessage(payload.error) ||
+              (response.status === 503
+                ? 'Import to the list requires Supabase. Use the session builder settings menu to import JSON into a local draft.'
+                : `Import failed (${response.status}).`)
+          );
+        }
+        return;
+      }
+
+      router.refresh();
+    } catch {
+      setImportError('Network error while importing.');
+    } finally {
+      setImporting(false);
+      event.target.value = '';
+    }
+  }
+
+  async function copySessionSchema(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(sessionDefinitionSchema, null, 2));
+      setSchemaCopyNotice(SCHEMA_COPY_SUCCESS);
+    } catch {
+      setSchemaCopyNotice('Could not copy to clipboard.');
+    }
+  }
+
   return (
     <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
+      <input
+        ref={importInputRef}
+        type="file"
+        accept="application/json"
+        className="hidden"
+        onChange={(e) => void handleImportJSON(e)}
+      />
       <div className="mx-auto max-w-xl">
         <div className="mb-10 flex items-center justify-between">
           <h1 className="text-3xl font-semibold tracking-tight">sessions</h1>
-          <button className="text-sm text-muted hover:text-text transition-colors">import JSON</button>
+          <div className="relative" ref={settingsMenuRef}>
+            <button
+              type="button"
+              disabled={importing}
+              className="inline-flex items-center justify-center rounded-md border border-border p-2 text-muted transition-colors hover:border-text/30 hover:text-text disabled:pointer-events-none disabled:opacity-40"
+              aria-expanded={settingsMenuOpen}
+              aria-haspopup="menu"
+              aria-label="Session list settings"
+              onClick={() => setSettingsMenuOpen((open) => !open)}
+            >
+              <CogIcon />
+            </button>
+            {settingsMenuOpen ? (
+              <div
+                role="menu"
+                className="absolute right-0 z-40 mt-1 min-w-[11rem] rounded-md border border-line bg-panel py-1 text-sm shadow-none"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text"
+                  onClick={() => {
+                    setSettingsMenuOpen(false);
+                    router.push('/builder/new');
+                  }}
+                >
+                  create new session
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={importing}
+                  className="flex w-full px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text disabled:pointer-events-none disabled:opacity-40"
+                  onClick={() => {
+                    setSettingsMenuOpen(false);
+                    importInputRef.current?.click();
+                  }}
+                >
+                  {importing ? 'importing…' : 'import JSON'}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text"
+                  onClick={() => {
+                    setSettingsMenuOpen(false);
+                    void copySessionSchema();
+                  }}
+                >
+                  copy JSON schema
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {orderError ? <p className="mb-4 text-sm text-red-500/90">{orderError}</p> : null}
+        {importError ? <p className="mb-4 text-sm text-red-500/90">{importError}</p> : null}
+        {schemaCopyNotice ? (
+          <p
+            className={`mb-4 text-sm ${schemaCopyNotice === SCHEMA_COPY_SUCCESS ? 'text-accent' : 'text-red-500/90'}`}
+            role="status"
+          >
+            {schemaCopyNotice}
+          </p>
+        ) : null}
 
         <div className="space-y-8">
           {items.length === 0 ? (
@@ -155,10 +327,6 @@ export function SessionList({
             ))
           )}
         </div>
-
-        <Link href="/builder/new" className="mt-10 inline-block text-lg text-muted hover:text-text transition-colors">
-          + create new session
-        </Link>
       </div>
     </main>
   );

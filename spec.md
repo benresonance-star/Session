@@ -13,7 +13,8 @@ The product should feel like a calm instrument rather than a generic fitness app
 - **`PUT /api/sessions`** upserts a validated `SessionDefinition` into Supabase (same table), preserving or assigning **`sort_order`**. The builder’s **save to Supabase** action and the **adjust** screen’s **done** action call this route.
 - **`PATCH /api/sessions/order`** accepts `{ session_ids: string[] }` (full ordered list, no duplicates) and updates **`sort_order`** for each row when Supabase is configured. Used by the home session list when drag-reorder is enabled.
 - **`DELETE /api/sessions/[sessionId]`** removes the matching row from **`session_definitions`** when Supabase is configured. Used from **`/builder/[id]`** only (not **`/builder/new`**) after the user confirms in a modal.
-- The builder is the most complete flow: structural editing, block-type conversion, import/export, schema validation, optional **delete session**, and a compact header: **save to Supabase** is shown only when the editor has **unsaved changes** (working copy differs from the last loaded or successfully saved snapshot). **validate**, **import JSON**, **export JSON**, and **delete session** live under a **settings cog** dropdown (with **lucide-react** icon controls for expand/collapse, reorder, and remove on stage/section/block/exercise rows).
+- The builder is the most complete flow: structural editing, block-type conversion, import/export, schema validation, optional **delete session**, and a compact header: **save to Supabase** is shown only when the editor has **unsaved changes** (working copy differs from the last loaded or successfully saved snapshot). **validate**, **import JSON**, **export JSON**, and **delete session** live under a **settings cog** dropdown (with **lucide-react** icon controls for expand/collapse, reorder, and remove on stage/section/block/exercise rows). Builder and home both use the shared **`components/ui/CogIcon.tsx`** SVG for that cog.
+- **`SessionList`** (**`/home`**): **settings cog** menu with **create new session** (**`/builder/new`**), **import JSON** (client **`parseImportedSession`** then **`PUT /api/sessions`** when Supabase is configured), and **copy JSON schema** (pretty-printed **`session-definition.schema.json`** to the clipboard, transient on-page **JSON schema copied** confirmation).
 - Builder collapse state for sections, blocks, and exercises is UI-only and is not part of exported session JSON.
 - **Session metadata:** optional **`description`** (multi-line, schema `maxLength` 2000) is documented in the JSON schema, edited in the builder (**session description** textarea), and shown on the **session detail** page when present.
 - **Play mode:** the playback compiler emits **`exercise`**, **`rest`**, and **`circuit_time_play`** steps (no structural stage/section/block marker steps). Normal **exercise** / **rest** lines use a **live countdown** on rests (`mm:ss`), auto-advance at zero, and skip. **← back** (under **← exit**) returns to the previous step when `index > 0`. **`circuit_time` blocks** compile to a **single `circuit_time_play` step**: a **block-level countdown** from `duration_seconds`, **`[ start ]`** before the clock runs, **`[ pause ]` / `[ resume ]`**, cycling **exercises** in order with **`[ complete ]`**; optional **per-exercise** `rest_after_seconds` shows an in-block rest timer (skip supported). While the block clock runs, time counts down during rests too. When time reaches **zero**, the UI shows **time up — finish this step**; the user **finishes the current exercise or rest**, then play **advances past the circuit** (no extra rest after time up if they were on an exercise). After the final plan step, a **completion splash** (CONGRATULATIONS / Session completed); **tap** navigates to **`/home`**.
@@ -81,11 +82,13 @@ UI:
 - subtle row layout
 - no dashboard stats
 - when Supabase is configured: **drag handle** per row (**@dnd-kit**, vertical list); row body remains a link to session detail
+- **settings cog** (same icon as the session builder) opens a dropdown with **create new session**, **import JSON**, and **copy JSON schema** (copies the bundled session-definition JSON Schema to the clipboard, pretty-printed, with on-page **JSON schema copied** confirmation); click-outside and **Escape** close the menu
 
 Primary interactions:
 - tap row -> Session Detail
-- tap `+ new session` -> Session Builder (new)
-- optional import JSON action
+- **create new session** (under settings) -> Session Builder (**`/builder/new`**)
+- **import JSON** (under settings): pick a file; client validates with `parseImportedSession`, then **`PUT /api/sessions`** upserts into Supabase when configured (same as builder save). If Supabase is not configured (**503**), use the builder **settings → import JSON** to load a draft client-side only.
+- **copy JSON schema** (under settings): copies canonical schema for use with external tools (e.g. AI-generated session JSON for later import)
 - drag handle -> reorder list; order **PATCH**ed to Supabase
 
 ### 2. Session Detail / Preview
@@ -223,7 +226,7 @@ UI:
 - Keep the play UI very light; state changes are more important than decorative UI
 - Builder UI should stay text-led and sparse, with minimal borders
 - Keep builder theming token-driven so future reskinning happens mostly in shared UI and theme layers
-- Use shared UI primitives for editor shells and actions where possible
+- Use shared UI primitives for editor shells and actions where possible (e.g. **`CogIcon`** for builder and home settings menus)
 
 ## Current builder status
 - `SessionBuilder` currently supports:
