@@ -11,16 +11,43 @@ function formatRestCountdown(totalSeconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+function PlayModeNav({
+  sessionId,
+  canGoBack,
+  onBack
+}: {
+  sessionId: string;
+  canGoBack: boolean;
+  onBack: () => void;
+}): JSX.Element {
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <Link href={`/exit?sessionId=${sessionId}`} className="hover:text-text">
+        ← exit
+      </Link>
+      {canGoBack ? (
+        <button type="button" onClick={onBack} className="text-left hover:text-text">
+          ← back
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function RestPanel({
   step,
   sessionId,
   nextTitle,
-  onComplete
+  onComplete,
+  canGoBack,
+  onBack
 }: {
   step: RestStep;
   sessionId: string;
   nextTitle: string | null;
   onComplete: () => void;
+  canGoBack: boolean;
+  onBack: () => void;
 }): JSX.Element {
   const [remaining, setRemaining] = useState(() =>
     Math.max(0, step.duration_seconds)
@@ -47,7 +74,7 @@ function RestPanel({
     <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
       <div className="mx-auto max-w-xl">
         <div className="flex items-center justify-between text-sm text-muted">
-          <Link href={`/exit?sessionId=${sessionId}`} className="hover:text-text">← exit</Link>
+          <PlayModeNav sessionId={sessionId} canGoBack={canGoBack} onBack={onBack} />
           <div>rest</div>
           <div />
         </div>
@@ -85,6 +112,10 @@ export function PlayScreen({ plan }: { plan: PlaybackPlan }): JSX.Element {
     setIndex((i) => i + 1);
   }, []);
 
+  const goBack = useCallback(() => {
+    setIndex((i) => Math.max(0, i - 1));
+  }, []);
+
   if (!step) {
     const empty = plan.steps.length === 0;
     return (
@@ -116,6 +147,8 @@ export function PlayScreen({ plan }: { plan: PlaybackPlan }): JSX.Element {
         sessionId={plan.session_id}
         nextTitle={nextTitle}
         onComplete={advanceAfterRest}
+        canGoBack={index > 0}
+        onBack={goBack}
       />
     );
   }
@@ -138,7 +171,7 @@ export function PlayScreen({ plan }: { plan: PlaybackPlan }): JSX.Element {
     <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
       <div className="mx-auto max-w-xl">
         <div className="flex items-center justify-between text-sm text-muted">
-          <Link href={`/exit?sessionId=${plan.session_id}`} className="hover:text-text">← exit</Link>
+          <PlayModeNav sessionId={plan.session_id} canGoBack={index > 0} onBack={goBack} />
           <div>{step.stage_title?.toUpperCase()} — {step.section_title?.toUpperCase()}</div>
           <div>
             {step.round_index && step.round_total ? `round ${step.round_index} / ${step.round_total}` : ''}

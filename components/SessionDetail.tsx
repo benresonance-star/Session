@@ -1,5 +1,38 @@
 import Link from 'next/link';
-import type { SessionDefinition } from '@/types/session';
+import type { Block, SessionDefinition } from '@/types/session';
+
+function formatRounds(n: number): string {
+  return `${n} ${n === 1 ? 'round' : 'rounds'}`;
+}
+
+function formatSets(n: number): string {
+  return `${n} ${n === 1 ? 'set' : 'sets'}`;
+}
+
+/** Short hint for how many times the block repeats (rounds, sets, minutes, etc.). */
+function blockStructureHint(block: Block): string | null {
+  switch (block.block_type) {
+    case 'circuit_rounds':
+      return formatRounds(block.rounds);
+    case 'flow': {
+      const r = block.rounds ?? 1;
+      return r > 1 ? formatRounds(r) : null;
+    }
+    case 'straight_sets':
+      return formatSets(block.sets);
+    case 'superset':
+      return formatSets(block.sets);
+    case 'emom':
+      return `${block.minutes} ${block.minutes === 1 ? 'minute' : 'minutes'} EMOM`;
+    case 'circuit_time': {
+      const s = block.duration_seconds;
+      if (s >= 60 && s % 60 === 0) return `${s / 60} min timed circuit`;
+      return `${s}s timed circuit`;
+    }
+    default:
+      return null;
+  }
+}
 
 export function SessionDetail({ session }: { session: SessionDefinition }): JSX.Element {
   return (
@@ -22,9 +55,16 @@ export function SessionDetail({ session }: { session: SessionDefinition }): JSX.
                 {(stage.sections ?? []).map((section) => (
                   <div key={section.section_id} className="space-y-3">
                     <div className="text-base text-text">{section.title}</div>
-                    {section.blocks.map((block) => (
+                    {section.blocks.map((block) => {
+                      const structureHint = blockStructureHint(block);
+                      return (
                       <div key={block.block_id} className="space-y-2 pl-4 border-l border-line">
-                        <div className="text-sm text-muted">{block.title}</div>
+                        <div className="text-sm">
+                          <span className="text-muted">{block.title}</span>
+                          {structureHint ? (
+                            <span className="text-text"> · {structureHint}</span>
+                          ) : null}
+                        </div>
                         {'exercises' in block ? block.exercises.map((exercise) => (
                           <div key={exercise.exercise_id} className="flex items-baseline justify-between gap-6 text-sm">
                             <span>{exercise.title}</span>
@@ -37,7 +77,8 @@ export function SessionDetail({ session }: { session: SessionDefinition }): JSX.
                           </div>
                         )) : null}
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 ))}
               </div>
