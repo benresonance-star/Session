@@ -47,7 +47,12 @@ import {
   updateStageTitle
 } from '@/lib/session-builder';
 import { safeServiceErrorMessage } from '@/lib/safe-service-error';
-import { exportSessionDefinition, parseImportedSession, validateSessionDefinition } from '@/lib/session-validation';
+import {
+  exportSessionDefinition,
+  normalizeEmptyExerciseTitlesForPersistence,
+  parseImportedSession,
+  validateSessionDefinition
+} from '@/lib/session-validation';
 import type {
   AnyExercisePath,
   BlockPath,
@@ -93,18 +98,20 @@ function EditorField({
 function TextInput({
   value,
   onChange,
-  placeholder
+  placeholder,
+  className = ''
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  className?: string;
 }): JSX.Element {
   return (
     <input
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text outline-none transition-colors focus:border-accent"
+      className={`w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text outline-none transition-colors placeholder:text-muted/60 focus:border-accent ${className}`.trim()}
     />
   );
 }
@@ -349,7 +356,8 @@ function SessionBuilder({
   }
 
   function validateCurrentSession(): boolean {
-    const result = validateSessionDefinition(session);
+    const normalized = normalizeEmptyExerciseTitlesForPersistence(session);
+    const result = validateSessionDefinition(normalized);
     setValidationErrors(result.errors);
     setNotice(result.isValid ? 'Session is valid and ready to export.' : null);
     return result.isValid;
@@ -381,7 +389,7 @@ function SessionBuilder({
       return;
     }
 
-    const payload = exportSessionDefinition(session);
+    const payload = exportSessionDefinition(normalizeEmptyExerciseTitlesForPersistence(session));
     const blob = new Blob([payload], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -392,7 +400,8 @@ function SessionBuilder({
   }
 
   async function handleSaveToSupabase(): Promise<void> {
-    const validation = validateSessionDefinition(session);
+    const normalized = normalizeEmptyExerciseTitlesForPersistence(session);
+    const validation = validateSessionDefinition(normalized);
     if (!validation.isValid) {
       setValidationErrors(validation.errors);
       setNotice(null);
@@ -405,7 +414,7 @@ function SessionBuilder({
       const response = await fetch('/api/sessions', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(session)
+        body: JSON.stringify(normalized)
       });
       const contentType = response.headers.get('content-type') ?? '';
       let payload: { errors?: string[]; error?: string } = {};
@@ -426,7 +435,8 @@ function SessionBuilder({
       }
 
       setNotice('Saved to Supabase.');
-      setLastSavedJson(sessionSnapshot(session));
+      setSession(normalized);
+      setLastSavedJson(sessionSnapshot(normalized));
     } catch {
       setValidationErrors(['Network error while saving.']);
       setNotice(null);
@@ -476,7 +486,8 @@ function SessionBuilder({
     const loadValue = 'load' in exercise.equipment ? exercise.equipment.load?.value : undefined;
     const collapseKey = getExerciseCollapseKey(exercise.exercise_id);
     const collapsed = isCollapsed(collapseKey);
-    const title = options?.titlePrefix ? `${options.titlePrefix}: ${exercise.title}` : exercise.title;
+    const displayTitle = exercise.title.trim() || 'Untitled exercise';
+    const title = options?.titlePrefix ? `${options.titlePrefix}: ${displayTitle}` : displayTitle;
 
     return (
       <div className="rounded-lg border border-border/70 bg-surface/40 p-4">
@@ -511,7 +522,7 @@ function SessionBuilder({
               <TextInput
                 value={exercise.title}
                 onChange={(value) => applyUpdate((current) => updateExerciseTitle(current, path, value))}
-                placeholder="Exercise title"
+                placeholder="Untitled exercise"
               />
             </EditorField>
 

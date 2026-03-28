@@ -550,7 +550,7 @@ export function updateExerciseTitle(session: SessionDefinition, path: AnyExercis
   if (!block) return next;
   const exercise = getExerciseFromBlock(block, path);
   if (!exercise) return next;
-  exercise.title = title || 'Untitled Exercise';
+  exercise.title = title;
   return next;
 }
 
