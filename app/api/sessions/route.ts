@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { safeServiceErrorMessage } from '@/lib/safe-service-error';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { validateSessionDefinition } from '@/lib/session-validation';
 import type { SessionDefinition } from '@/types/session';
@@ -36,7 +37,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
   );
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: safeServiceErrorMessage(error.message) || 'Supabase request failed.' }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

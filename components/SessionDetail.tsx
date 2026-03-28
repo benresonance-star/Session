@@ -10,6 +10,10 @@ export function SessionDetail({ session }: { session: SessionDefinition }): JSX.
         <h1 className="mt-6 text-display">{session.title}</h1>
         <div className="mt-3 text-sm text-muted">{session.duration_minutes} min · {(session.tags ?? []).join(' · ')}</div>
 
+        {session.description?.trim() ? (
+          <p className="mt-8 max-w-prose whitespace-pre-wrap text-base leading-relaxed text-text">{session.description.trim()}</p>
+        ) : null}
+
         <div className="mt-12 space-y-10">
           {session.stages.map((stage) => (
             <section key={stage.stage_id}>

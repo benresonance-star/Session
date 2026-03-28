@@ -27,6 +27,7 @@ export interface SessionDefinition {
   schema_version: SchemaVersion;
   session_id: string;
   title: string;
+  /** Multi-line optional summary of what the session targets (goals, focus, equipment); validated by session JSON schema. */
   description?: string;
   tags?: string[];
   duration_minutes?: number;

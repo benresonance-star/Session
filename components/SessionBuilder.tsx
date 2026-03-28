@@ -43,6 +43,7 @@ import {
   updateStageId,
   updateStageTitle
 } from '@/lib/session-builder';
+import { safeServiceErrorMessage } from '@/lib/safe-service-error';
 import { exportSessionDefinition, parseImportedSession, validateSessionDefinition } from '@/lib/session-validation';
 import type {
   AnyExercisePath,
@@ -101,6 +102,28 @@ function TextInput({
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       className="w-full rounded-md border border-border bg-panel px-3 py-2 text-sm text-text outline-none transition-colors focus:border-accent"
+    />
+  );
+}
+
+function TextAreaInput({
+  value,
+  onChange,
+  placeholder,
+  rows = 5
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  rows?: number;
+}): JSX.Element {
+  return (
+    <textarea
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      className="min-h-[6rem] w-full resize-y rounded-md border border-border bg-panel px-3 py-2 text-sm leading-relaxed text-text outline-none transition-colors focus:border-accent"
     />
   );
 }
@@ -330,16 +353,19 @@ function SessionBuilder({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(session)
       });
-      const payload = (await response.json().catch(() => ({}))) as {
-        errors?: string[];
-        error?: string;
-      };
+      const contentType = response.headers.get('content-type') ?? '';
+      let payload: { errors?: string[]; error?: string } = {};
+      if (contentType.includes('application/json')) {
+        payload = (await response.json().catch(() => ({}))) as typeof payload;
+      }
 
       if (!response.ok) {
         if (payload.errors?.length) {
-          setValidationErrors(payload.errors);
+          setValidationErrors(payload.errors.map((e) => safeServiceErrorMessage(e)));
         } else {
-          setValidationErrors([payload.error ?? `Save failed (${response.status}).`]);
+          setValidationErrors([
+            safeServiceErrorMessage(payload.error) || `Save failed (${response.status}).`
+          ]);
         }
         setNotice(null);
         return;
@@ -779,11 +805,11 @@ function SessionBuilder({
               />
             </EditorField>
             <div className="lg:col-span-2">
-              <EditorField label="description">
-                <TextInput
+              <EditorField label="session description">
+                <TextAreaInput
                   value={session.description ?? ''}
                   onChange={(value) => applyUpdate((current) => updateSessionDescription(current, value))}
-                  placeholder="What this session is for"
+                  placeholder="What this session targets (goals, focus, equipment, notes for yourself or AI)"
                 />
               </EditorField>
             </div>

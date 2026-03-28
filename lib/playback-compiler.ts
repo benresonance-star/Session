@@ -69,8 +69,6 @@ function compileBlock(steps: PlaybackStep[], session: NormalizedSessionDefinitio
     block_type: block.block_type
   };
 
-  pushStep(steps, { type: 'block_start', step_id: `${block.block_id}-start`, ...base });
-
   switch (block.block_type) {
     case 'flow':
     case 'circuit_rounds': {
@@ -171,8 +169,6 @@ function compileBlock(steps: PlaybackStep[], session: NormalizedSessionDefinitio
       break;
     }
   }
-
-  pushStep(steps, { type: 'block_end', step_id: `${block.block_id}-end`, ...base });
 }
 
 export function compilePlaybackPlan(sessionDef: import('@/types/session').SessionDefinition): PlaybackPlan {
@@ -180,25 +176,7 @@ export function compilePlaybackPlan(sessionDef: import('@/types/session').Sessio
   const steps: PlaybackStep[] = [];
 
   for (const stage of session.stages) {
-    pushStep(steps, {
-      type: 'stage_start',
-      step_id: `${stage.stage_id}-start`,
-      session_id: session.session_id,
-      stage_id: stage.stage_id,
-      stage_title: stage.title
-    });
-
     for (const section of stage.sections) {
-      pushStep(steps, {
-        type: 'section_start',
-        step_id: `${section.section_id}-start`,
-        session_id: session.session_id,
-        stage_id: stage.stage_id,
-        stage_title: stage.title,
-        section_id: section.section_id,
-        section_title: section.title
-      });
-
       for (const block of section.blocks) {
         compileBlock(steps, session, {
           stage_id: stage.stage_id,
@@ -221,32 +199,8 @@ export function compilePlaybackPlan(sessionDef: import('@/types/session').Sessio
           duration_seconds: section.rest_after_section_seconds
         });
       }
-
-      pushStep(steps, {
-        type: 'section_end',
-        step_id: `${section.section_id}-end`,
-        session_id: session.session_id,
-        stage_id: stage.stage_id,
-        stage_title: stage.title,
-        section_id: section.section_id,
-        section_title: section.title
-      });
     }
-
-    pushStep(steps, {
-      type: 'stage_end',
-      step_id: `${stage.stage_id}-end`,
-      session_id: session.session_id,
-      stage_id: stage.stage_id,
-      stage_title: stage.title
-    });
   }
-
-  pushStep(steps, {
-    type: 'session_complete',
-    step_id: 'session-complete',
-    session_id: session.session_id
-  });
 
   return {
     session_id: session.session_id,

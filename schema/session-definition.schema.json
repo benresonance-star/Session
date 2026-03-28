@@ -15,7 +15,11 @@
       "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
     },
     "title": { "type": "string", "minLength": 1, "maxLength": 120 },
-    "description": { "type": "string", "maxLength": 2000 },
+    "description": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Optional multi-line summary of what this session targets (goals, focus areas, equipment, audience). Intended for humans and AI-authored session metadata."
+    },
     "tags": {
       "type": "array",
       "items": { "type": "string", "minLength": 1, "maxLength": 40 },
@@ -91,7 +95,6 @@
     },
     "block_base": {
       "type": "object",
-      "additionalProperties": false,
       "required": ["block_id", "block_type", "title"],
       "properties": {
         "block_id": {
