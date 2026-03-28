@@ -1,7 +1,6 @@
 import 'server-only';
 
 import sampleSession from '@/data/sample-session.json';
-import { createEmptySession } from '@/lib/session-builder';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import type { SessionDefinition } from '@/types/session';
 
@@ -18,20 +17,17 @@ function cloneFallbackSession(sessionId: string): SessionDefinition | null {
   return session ? structuredClone(session) : null;
 }
 
-export function createNewSessionDraft(): SessionDefinition {
-  const draft = createEmptySession();
-  draft.tags = ['draft'];
-  draft.duration_minutes = 30;
-  return draft;
-}
-
 export async function listSessions(): Promise<SessionDefinition[]> {
   const client = createSupabaseAdmin();
   if (!client) {
     return cloneFallbackList();
   }
 
-  const { data, error } = await client.from(TABLE).select('payload').order('title', { ascending: true });
+  const { data, error } = await client
+    .from(TABLE)
+    .select('payload')
+    .order('sort_order', { ascending: true })
+    .order('title', { ascending: true });
 
   if (error) {
     return cloneFallbackList();

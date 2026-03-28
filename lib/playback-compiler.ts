@@ -137,14 +137,14 @@ function compileBlock(steps: PlaybackStep[], session: NormalizedSessionDefinitio
       break;
     }
     case 'circuit_time': {
-      for (const exercise of block.exercises) {
-        compileExercise(steps, session.session_id, {
-          ...base,
-          block_id: block.block_id,
-          block_title: block.title,
-          block_type: block.block_type
-        }, exercise);
-      }
+      pushStep(steps, {
+        type: 'circuit_time_play',
+        step_id: `${block.block_id}-circuit-time`,
+        ...base,
+        duration_seconds: block.duration_seconds,
+        exercises: block.exercises,
+        rest_as_needed: block.rest_as_needed
+      });
       break;
     }
     case 'superset': {

@@ -26,11 +26,28 @@ export async function PUT(request: Request): Promise<NextResponse> {
   }
 
   const session = body as SessionDefinition;
+
+  const { data: existing } = await client.from(TABLE).select('sort_order').eq('session_id', session.session_id).maybeSingle();
+
+  let sortOrder: number;
+  if (existing && typeof existing.sort_order === 'number') {
+    sortOrder = existing.sort_order;
+  } else {
+    const { data: maxRow } = await client
+      .from(TABLE)
+      .select('sort_order')
+      .order('sort_order', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    sortOrder = (typeof maxRow?.sort_order === 'number' ? maxRow.sort_order : -1) + 1;
+  }
+
   const { error } = await client.from(TABLE).upsert(
     {
       session_id: session.session_id,
       title: session.title,
       payload: session,
+      sort_order: sortOrder,
       updated_at: new Date().toISOString()
     },
     { onConflict: 'session_id' }

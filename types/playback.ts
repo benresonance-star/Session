@@ -6,6 +6,7 @@ export type PlaybackStepType =
   | 'block_start'
   | 'exercise'
   | 'rest'
+  | 'circuit_time_play'
   | 'block_end'
   | 'section_end'
   | 'stage_end'
@@ -78,6 +79,14 @@ export interface RestStep extends PlaybackStepBase {
   minute_total?: number;
 }
 
+/** Single play step for a timed circuit: AMRAP-style loop until duration elapses (handled in UI). */
+export interface CircuitTimePlayStep extends PlaybackStepBase {
+  type: 'circuit_time_play';
+  duration_seconds: number;
+  exercises: Exercise[];
+  rest_as_needed?: boolean;
+}
+
 export interface BlockEndStep extends PlaybackStepBase {
   type: 'block_end';
 }
@@ -100,6 +109,7 @@ export type PlaybackStep =
   | BlockStartStep
   | ExerciseStep
   | RestStep
+  | CircuitTimePlayStep
   | BlockEndStep
   | SectionEndStep
   | StageEndStep
