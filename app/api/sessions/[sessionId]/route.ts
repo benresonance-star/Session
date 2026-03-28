@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 
 import { safeServiceErrorMessage } from '@/lib/safe-service-error';
@@ -31,6 +32,9 @@ export async function DELETE(
       { status: 500 }
     );
   }
+
+  revalidatePath('/home');
+  revalidatePath('/');
 
   return NextResponse.json({ ok: true });
 }

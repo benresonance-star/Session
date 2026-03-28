@@ -123,7 +123,7 @@ export interface Exercise {
   tempo?: string;
   sides?: SideMode;
   notes?: string;
-  /** Form cues, tempo, or hold timing shown in builder, session detail, and play. */
+  /** Form cues, tempo, or hold timing; edited in builder, shown in play mode only. */
   coach?: string;
   link?: ExerciseLink;
 }

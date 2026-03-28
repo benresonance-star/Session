@@ -6,7 +6,7 @@ Build a minimal dark-mode workout app for creating, previewing, editing, and run
 The product should feel like a calm instrument rather than a generic fitness app.
 
 ## Current implementation snapshot
-- **JSON schema:** **`schema/session-definition.schema.json`** validates session JSON (Ajv in **`lib/session-validation.ts`**). **`schema_version`** is **`"1.1"`** or **`"1.2"`** (enum); both accept the same exercise shape. **`1.1`** sessions without new fields remain valid unchanged. Optional per-exercise **`coach`** (string, form cues / tempo / hold timing) is allowed on any supported version and is edited in the builder, shown on session detail and in play under the prescription line when set. New sessions from **`createEmptySession`** use **`schema_version: "1.2"`**; existing **`1.1`** rows are not auto-bumped on save.
+- **JSON schema:** **`schema/session-definition.schema.json`** validates session JSON (Ajv in **`lib/session-validation.ts`**). **`schema_version`** is **`"1.1"`** or **`"1.2"`** (enum); both accept the same exercise shape. **`1.1`** sessions without new fields remain valid unchanged. Optional per-exercise **`coach`** (string, form cues / tempo / hold timing) is allowed on any supported version and is edited in the builder; it is **shown in play mode only** (not on the session preview / detail page before start). New sessions from **`createEmptySession`** use **`schema_version: "1.2"`**; existing **`1.1`** rows are not auto-bumped on save.
 - The app runs on Next.js App Router with React and Tailwind.
 - `/`, `/home`, `/session/[id]`, `/builder/[id]`, `/builder/new`, `/play/[id]`, `/edit/[sessionId]/[exerciseId]`, and `/exit` are present.
 - **`lib/session-repository.ts`** resolves sessions: when Supabase is configured (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`), **list** and **get** read from the `session_definitions` table; otherwise the app falls back to **bundled sample sessions**. Rows are ordered by **`sort_order`** (then `title`); new rows get the next sort index on upsert.
@@ -106,7 +106,7 @@ Purpose:
 UI:
 - session title
 - duration and tags (and optional **description** body copy when `description` is set—multi-line, prose style)
-- visible stage -> section -> exercise structure; each **block** line shows a short **structure hint** after the title (e.g. **4 rounds** for `circuit_rounds`, set counts for straight sets / supersets, EMOM minutes, timed circuit duration) so repeats are obvious before play; optional **coach** text under an exercise line when present
+- visible stage -> section -> exercise structure; each **block** line shows a short **structure hint** after the title (e.g. **4 rounds** for `circuit_rounds`, set counts for straight sets / supersets, EMOM minutes, timed circuit duration) so repeats are obvious before play (**coach** cues are not shown here; they appear in play only)
 - start session action
 - edit / duplicate secondary actions
 

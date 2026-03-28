@@ -66,19 +66,14 @@ export function SessionDetail({ session }: { session: SessionDefinition }): JSX.
                           ) : null}
                         </div>
                         {'exercises' in block ? block.exercises.map((exercise) => (
-                          <div key={exercise.exercise_id} className="space-y-1 text-sm">
-                            <div className="flex items-baseline justify-between gap-6">
-                              <span>{exercise.title}</span>
-                              <span className="text-muted">
-                                {exercise.prescription.mode === 'reps' && `${exercise.prescription.reps} reps`}
-                                {exercise.prescription.mode === 'rep_range' && `${exercise.prescription.min_reps}-${exercise.prescription.max_reps} reps`}
-                                {exercise.prescription.mode === 'time' && `${exercise.prescription.seconds}s`}
-                                {'load' in exercise.equipment && exercise.equipment.load ? ` @ ${exercise.equipment.load.value} ${exercise.equipment.load.unit}` : ''}
-                              </span>
-                            </div>
-                            {exercise.coach?.trim() ? (
-                              <p className="max-w-prose whitespace-pre-wrap text-xs leading-relaxed text-muted">{exercise.coach.trim()}</p>
-                            ) : null}
+                          <div key={exercise.exercise_id} className="flex items-baseline justify-between gap-6 text-sm">
+                            <span>{exercise.title}</span>
+                            <span className="text-muted">
+                              {exercise.prescription.mode === 'reps' && `${exercise.prescription.reps} reps`}
+                              {exercise.prescription.mode === 'rep_range' && `${exercise.prescription.min_reps}-${exercise.prescription.max_reps} reps`}
+                              {exercise.prescription.mode === 'time' && `${exercise.prescription.seconds}s`}
+                              {'load' in exercise.equipment && exercise.equipment.load ? ` @ ${exercise.equipment.load.value} ${exercise.equipment.load.unit}` : ''}
+                            </span>
                           </div>
                         )) : null}
                       </div>

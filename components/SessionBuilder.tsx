@@ -465,7 +465,8 @@ function SessionBuilder({
         return;
       }
       setDeleteConfirmOpen(false);
-      router.push('/home');
+      await router.push('/home');
+      router.refresh();
     } catch {
       setDeleteConfirmOpen(false);
       setValidationErrors(['Network error while deleting.']);
