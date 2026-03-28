@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 export function EditorPanel({
@@ -27,14 +28,20 @@ export function EditorPanel({
           {!collapsed && subtitle ? <div className="mt-1 text-sm text-muted">{subtitle}</div> : null}
         </div>
         {(actions || collapsible) ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-px">
             {collapsible ? (
               <button
                 type="button"
                 onClick={onToggleCollapse}
-                className="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm text-muted transition-colors hover:text-text"
+                aria-expanded={!collapsed}
+                aria-label={collapsed ? 'Expand section' : 'Collapse section'}
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-md p-0 text-muted transition-colors hover:text-text"
               >
-                {collapsed ? 'expand' : 'collapse'}
+                {collapsed ? (
+                  <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
+                ) : (
+                  <ChevronUp className="h-4 w-4 shrink-0" aria-hidden />
+                )}
               </button>
             ) : null}
             {actions}

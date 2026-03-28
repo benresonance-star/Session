@@ -157,7 +157,7 @@ export function SessionList({
         </div>
 
         <Link href="/builder/new" className="mt-10 inline-block text-lg text-muted hover:text-text transition-colors">
-          + new session
+          + create new session
         </Link>
       </div>
     </main>

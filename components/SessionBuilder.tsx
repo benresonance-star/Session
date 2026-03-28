@@ -1,5 +1,6 @@
 'use client';
 
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -184,11 +185,26 @@ function RowActions({
   onRemove?: () => void;
   removeLabel: string;
 }): JSX.Element {
+  /* !p-0 overrides ActionButton’s default px-3 py-1.5 so flex gap actually controls icon spacing */
+  const iconBtn = '!p-0 size-9 shrink-0';
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {onMoveUp ? <ActionButton onClick={onMoveUp}>up</ActionButton> : null}
-      {onMoveDown ? <ActionButton onClick={onMoveDown}>down</ActionButton> : null}
-      {onRemove ? <ActionButton variant="danger" onClick={onRemove}>{removeLabel}</ActionButton> : null}
+    <div className="flex flex-wrap gap-px">
+      {onMoveUp ? (
+        <ActionButton className={iconBtn} aria-label="Move up" onClick={onMoveUp}>
+          <ArrowUp className="h-4 w-4 shrink-0" aria-hidden />
+        </ActionButton>
+      ) : null}
+      {onMoveDown ? (
+        <ActionButton className={iconBtn} aria-label="Move down" onClick={onMoveDown}>
+          <ArrowDown className="h-4 w-4 shrink-0" aria-hidden />
+        </ActionButton>
+      ) : null}
+      {onRemove ? (
+        <ActionButton className={iconBtn} variant="danger" aria-label={removeLabel} onClick={onRemove}>
+          <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+        </ActionButton>
+      ) : null}
     </div>
   );
 }
@@ -241,6 +257,10 @@ function buildCollapsedState(session: SessionDefinition): Record<string, boolean
   return entries;
 }
 
+function sessionSnapshot(session: SessionDefinition): string {
+  return JSON.stringify(session);
+}
+
 function syncCollapsedState(
   current: Record<string, boolean>,
   session: SessionDefinition
@@ -286,8 +306,11 @@ function SessionBuilder({
   const [deleting, setDeleting] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [collapsedItems, setCollapsedItems] = useState<Record<string, boolean>>(() => buildCollapsedState(initialSession));
+  const [lastSavedJson, setLastSavedJson] = useState(() => sessionSnapshot(initialSession));
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const isDirty = useMemo(() => sessionSnapshot(session) !== lastSavedJson, [session, lastSavedJson]);
 
   useEffect(() => {
     if (!settingsMenuOpen) {
@@ -415,6 +438,7 @@ function SessionBuilder({
       }
 
       setNotice('Saved to Supabase.');
+      setLastSavedJson(sessionSnapshot(session));
     } catch {
       setValidationErrors(['Network error while saving.']);
       setNotice(null);
@@ -475,9 +499,19 @@ function SessionBuilder({
             ) : null}
             <div className="mt-1 text-base font-medium text-text">{title}</div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <ActionButton variant="ghost" onClick={() => toggleCollapsed(collapseKey)}>
-              {collapsed ? 'expand' : 'collapse'}
+          <div className="flex flex-wrap gap-px">
+            <ActionButton
+              variant="ghost"
+              className="!p-0 size-9 shrink-0"
+              aria-expanded={!collapsed}
+              aria-label={collapsed ? 'Expand exercise' : 'Collapse exercise'}
+              onClick={() => toggleCollapsed(collapseKey)}
+            >
+              {collapsed ? (
+                <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
+              ) : (
+                <ChevronUp className="h-4 w-4 shrink-0" aria-hidden />
+              )}
             </ActionButton>
             {options?.actions}
           </div>
@@ -830,12 +864,11 @@ function SessionBuilder({
           {summary ? <div className="mt-2 text-sm text-muted">{summary}</div> : null}
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <ActionButton variant="primary" onClick={validateCurrentSession}>
-            validate
-          </ActionButton>
-          <ActionButton variant="primary" disabled={saving} onClick={() => void handleSaveToSupabase()}>
-            {saving ? 'saving…' : 'save to Supabase'}
-          </ActionButton>
+          {isDirty ? (
+            <ActionButton variant="primary" disabled={saving} onClick={() => void handleSaveToSupabase()}>
+              {saving ? 'saving…' : 'save to Supabase'}
+            </ActionButton>
+          ) : null}
           <div className="relative" ref={settingsMenuRef}>
             <button
               type="button"
@@ -852,6 +885,17 @@ function SessionBuilder({
                 role="menu"
                 className="absolute right-0 z-40 mt-1 min-w-[11rem] rounded-md border border-line bg-panel py-1 text-sm shadow-none"
               >
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text"
+                  onClick={() => {
+                    setSettingsMenuOpen(false);
+                    validateCurrentSession();
+                  }}
+                >
+                  validate
+                </button>
                 <button
                   type="button"
                   role="menuitem"

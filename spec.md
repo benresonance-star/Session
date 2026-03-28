@@ -13,7 +13,7 @@ The product should feel like a calm instrument rather than a generic fitness app
 - **`PUT /api/sessions`** upserts a validated `SessionDefinition` into Supabase (same table), preserving or assigning **`sort_order`**. The builder’s **save to Supabase** action and the **adjust** screen’s **done** action call this route.
 - **`PATCH /api/sessions/order`** accepts `{ session_ids: string[] }` (full ordered list, no duplicates) and updates **`sort_order`** for each row when Supabase is configured. Used by the home session list when drag-reorder is enabled.
 - **`DELETE /api/sessions/[sessionId]`** removes the matching row from **`session_definitions`** when Supabase is configured. Used from **`/builder/[id]`** only (not **`/builder/new`**) after the user confirms in a modal.
-- The builder is the most complete flow: structural editing, block-type conversion, import/export, schema validation, optional **delete session**, and a compact header (**validate** + **save to Supabase**; **import JSON**, **export JSON**, and **delete session** live under a **settings cog** dropdown).
+- The builder is the most complete flow: structural editing, block-type conversion, import/export, schema validation, optional **delete session**, and a compact header: **save to Supabase** is shown only when the editor has **unsaved changes** (working copy differs from the last loaded or successfully saved snapshot). **validate**, **import JSON**, **export JSON**, and **delete session** live under a **settings cog** dropdown (with **lucide-react** icon controls for expand/collapse, reorder, and remove on stage/section/block/exercise rows).
 - Builder collapse state for sections, blocks, and exercises is UI-only and is not part of exported session JSON.
 - **Session metadata:** optional **`description`** (multi-line, schema `maxLength` 2000) is documented in the JSON schema, edited in the builder (**session description** textarea), and shown on the **session detail** page when present.
 - **Play mode:** the playback compiler emits **`exercise`**, **`rest`**, and **`circuit_time_play`** steps (no structural stage/section/block marker steps). Normal **exercise** / **rest** lines use a **live countdown** on rests (`mm:ss`), auto-advance at zero, and skip. **← back** (under **← exit**) returns to the previous step when `index > 0`. **`circuit_time` blocks** compile to a **single `circuit_time_play` step**: a **block-level countdown** from `duration_seconds`, **`[ start ]`** before the clock runs, **`[ pause ]` / `[ resume ]`**, cycling **exercises** in order with **`[ complete ]`**; optional **per-exercise** `rest_after_seconds` shows an in-block rest timer (skip supported). While the block clock runs, time counts down during rests too. When time reaches **zero**, the UI shows **time up — finish this step**; the user **finishes the current exercise or rest**, then play **advances past the circuit** (no extra rest after time up if they were on an exercise). After the final plan step, a **completion splash** (CONGRATULATIONS / Session completed); **tap** navigates to **`/home`**.
@@ -112,12 +112,12 @@ Purpose:
 
 UI:
 - `← session` or `← sessions`
-- header: **`validate`** and **`save to Supabase`** as primary text actions; **settings cog** opens a dropdown with **import JSON**, **export JSON**, and (on **`/builder/[id]`** only) **delete session** (warning-styled); click-outside and **Escape** close the menu
+- header: **`save to Supabase`** (primary) only when there are **unsaved edits**; **settings cog** opens a dropdown with **validate**, **import JSON**, **export JSON**, and (on **`/builder/[id]`** only) **delete session** (warning-styled); click-outside and **Escape** close the menu
 - session metadata: title, id, **session description** (textarea), duration, tags; **save to Supabase** when API and env are configured
 - visible stage -> section -> block -> exercise tree
 - structured editing controls rather than raw JSON by default
 - lightweight `+ add exercise`, `+ add block`, `+ add section`, `+ add stage`
-- remove and reorder controls at each structural level
+- remove and reorder controls at each structural level (icon buttons: chevron expand/collapse, arrows for move up/down, trash for remove; accessible names via `aria-label`)
 - block-type switching for flow, straight sets, circuit rounds, timed circuits, supersets, and EMOM
 - collapsible toggles for sections, blocks, and exercises so the tree can compress to title-only rows
 - **delete session** (existing sessions only): modal warns that the session is removed from Supabase permanently; on success, navigate to **`/home`**
@@ -228,7 +228,7 @@ UI:
 ## Current builder status
 - `SessionBuilder` currently supports:
 - session title, id, **session description** (multi-line textarea), duration, and tags editing
-- header **validate** + **save to Supabase**; **import** / **export** / **delete** (when allowed) via **cog** menu
+- header **save to Supabase** only when **dirty** (JSON snapshot differs from baseline after load or last successful save); **validate** + **import** / **export** / **delete** (when allowed) via **cog** menu
 - **delete session** on **`/builder/[id]`** only: confirmation modal, then **`DELETE /api/sessions/[sessionId]`**, then **`/home`**
 - **save to Supabase** (via `PUT /api/sessions`) when environment variables are set
 - stage, section, block, and exercise add/remove/reorder flows
@@ -236,7 +236,7 @@ UI:
 - superset pair editing
 - JSON import, schema validation, and JSON export
 - collapsible sections, blocks, and exercises
-- Unsaved edits remain client-side until the user saves to Supabase or exports JSON
+- Unsaved edits remain client-side until the user saves to Supabase or exports JSON; a successful **save to Supabase** clears the dirty baseline so the save action hides until the next edit
 
 ## Known gaps
 - No session **duplication** workflow yet (detail page control is still inert)
