@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { AdjustScreen } from '@/components/AdjustScreen';
-import { getSeedSession } from '@/lib/session-repository';
+import { getSession } from '@/lib/session-repository';
 
 export default async function EditExercisePage({
   params
@@ -8,7 +8,7 @@ export default async function EditExercisePage({
   params: Promise<{ sessionId: string; exerciseId: string }>;
 }): Promise<JSX.Element> {
   const { sessionId, exerciseId } = await params;
-  const session = getSeedSession(sessionId);
+  const session = await getSession(sessionId);
 
   if (!session) {
     notFound();

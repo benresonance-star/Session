@@ -5,6 +5,14 @@ Build a minimal dark-mode workout app for creating, previewing, editing, and run
 
 The product should feel like a calm instrument rather than a generic fitness app.
 
+## Current implementation snapshot
+- The app runs on Next.js App Router with React and Tailwind.
+- `/`, `/home`, `/session/[id]`, `/builder/[id]`, `/builder/new`, `/play/[id]`, `/edit/[sessionId]/[exerciseId]`, and `/exit` are present.
+- Routes currently resolve against local seeded session data through a small repository layer.
+- The builder is now the most complete flow in the app and supports structural editing, block-type conversion, import/export, and schema validation.
+- Builder collapse state for sections, blocks, and exercises is UI-only and is not part of exported session JSON.
+- Persistence, run history, and post-run mutation workflows are still future work.
+
 ## Design principles
 - Typography-led interface
 - Minimal chrome
@@ -80,15 +88,18 @@ UI:
 Purpose:
 - create a new session or structurally edit an existing one
 - update stages, sections, blocks, exercises, prescriptions, load, and rest settings
-- export valid JSON later
+- import and export valid JSON
 
 UI:
 - `← session` or `← sessions`
 - session title and summary
 - visible stage -> section -> block -> exercise tree
-- tap lines to edit inline
+- structured editing controls rather than raw JSON by default
 - lightweight `+ add exercise`, `+ add block`, `+ add section`, `+ add stage`
-- save action and optional duplicate action
+- remove and reorder controls at each structural level
+- block-type switching for flow, straight sets, circuit rounds, timed circuits, supersets, and EMOM
+- collapsible toggles for sections, blocks, and exercises so the tree can compress to title-only rows
+- import JSON, validate, and export JSON actions
 
 Important distinction:
 - Builder handles structural editing
@@ -152,14 +163,34 @@ UI:
 - Import/export should always validate against the canonical JSON schema
 - The builder should allow session creation without forcing raw JSON editing
 - Raw JSON view can be added later as an advanced mode
+- Collapse/expand state is ephemeral UI state and should not affect validation or exports
 
 ## Implementation notes
 - Use sample local JSON first
+- Use a small local repository layer for seeded session resolution before persistence exists
 - Use provided TypeScript types as source of truth in code
 - Use provided JSON schema as canonical import/export contract
 - Compile nested session structure into a flat playback plan before rendering play mode
 - Keep the play UI very light; state changes are more important than decorative UI
 - Builder UI should stay text-led and sparse, with minimal borders
+- Keep builder theming token-driven so future reskinning happens mostly in shared UI and theme layers
+- Use shared UI primitives for editor shells and actions where possible
+
+## Current builder status
+- `SessionBuilder` currently supports:
+- session title, id, description, duration, and tags editing
+- stage, section, block, and exercise add/remove/reorder flows
+- block-type conversion with block-shape-aware controls
+- superset pair editing
+- JSON import, schema validation, and JSON export
+- collapsible sections, blocks, and exercises
+- Builder edits are currently local to the client session; persistence is not implemented yet
+
+## Known gaps
+- No durable save/persistence layer yet
+- No session duplication workflow yet
+- Play mode and adjust flow still need deeper runtime state work to match the builder’s sophistication
+- There is no authored-session storage backend yet; seeded local sessions remain the route source of truth
 
 ## Prompt for Cursor
 Build a minimal dark-mode workout app using Next.js + React + Tailwind.
@@ -188,7 +219,7 @@ Use the provided TypeScript types and JSON schema.
 Implement:
 - session detail view
 - session builder route and component
-- lightweight builder state helpers for add / edit / remove operations
+- builder state helpers for add / edit / remove / reorder operations
 - playback compiler
 - minimal playback state
 - rest handling

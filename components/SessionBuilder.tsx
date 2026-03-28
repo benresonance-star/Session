@@ -50,7 +50,7 @@ import type {
   ExercisePath,
   SupersetExercisePath
 } from '@/lib/session-builder';
-import type { Block, BlockType, Exercise, SessionDefinition, StageId } from '@/types/session';
+import type { Block, BlockType, Exercise, SessionDefinition, Stage, StageId } from '@/types/session';
 
 const stageOptions: StageId[] = ['warmup', 'main', 'cooldown'];
 const blockTypeOptions = Object.keys(BLOCK_TYPE_LABELS) as BlockType[];
@@ -169,6 +169,68 @@ function RowActions({
   );
 }
 
+function getStageCollapseKey(stage: Stage, stageIndex: number): string {
+  const anchorSectionId = stage.sections?.[0]?.section_id;
+  return `stage:${anchorSectionId ?? `${stage.stage_id}-${stageIndex}`}`;
+}
+
+function getSectionCollapseKey(sectionId: string): string {
+  return `section:${sectionId}`;
+}
+
+function getBlockCollapseKey(blockId: string): string {
+  return `block:${blockId}`;
+}
+
+function getExerciseCollapseKey(exerciseId: string): string {
+  return `exercise:${exerciseId}`;
+}
+
+function buildCollapsedState(session: SessionDefinition): Record<string, boolean> {
+  const entries: Record<string, boolean> = {};
+
+  session.stages.forEach((stage, stageIndex) => {
+    entries[getStageCollapseKey(stage, stageIndex)] = true;
+
+    (stage.sections ?? []).forEach((section) => {
+      entries[getSectionCollapseKey(section.section_id)] = true;
+
+      section.blocks.forEach((block) => {
+        entries[getBlockCollapseKey(block.block_id)] = true;
+
+        if (block.block_type === 'superset') {
+          block.exercise_pairs.forEach((pair) => {
+            pair.forEach((exercise) => {
+              entries[getExerciseCollapseKey(exercise.exercise_id)] = true;
+            });
+          });
+          return;
+        }
+
+        block.exercises.forEach((exercise) => {
+          entries[getExerciseCollapseKey(exercise.exercise_id)] = true;
+        });
+      });
+    });
+  });
+
+  return entries;
+}
+
+function syncCollapsedState(
+  current: Record<string, boolean>,
+  session: SessionDefinition
+): Record<string, boolean> {
+  const nextKeys = buildCollapsedState(session);
+  const nextState: Record<string, boolean> = {};
+
+  Object.keys(nextKeys).forEach((key) => {
+    nextState[key] = key in current ? current[key] : true;
+  });
+
+  return nextState;
+}
+
 function SessionBuilder({
   initialSession,
   backHref
@@ -179,6 +241,8 @@ function SessionBuilder({
   const [session, setSession] = useState<SessionDefinition>(initialSession);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [collapsedItems, setCollapsedItems] = useState<Record<string, boolean>>(() => buildCollapsedState(initialSession));
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const summary = useMemo(() => {
@@ -187,9 +251,24 @@ function SessionBuilder({
   }, [session]);
 
   function applyUpdate(updater: (current: SessionDefinition) => SessionDefinition): void {
-    setSession((current) => updater(current));
+    setSession((current) => {
+      const next = updater(current);
+      setCollapsedItems((collapsed) => syncCollapsedState(collapsed, next));
+      return next;
+    });
     setValidationErrors([]);
     setNotice(null);
+  }
+
+  function isCollapsed(key: string): boolean {
+    return Boolean(collapsedItems[key]);
+  }
+
+  function toggleCollapsed(key: string): void {
+    setCollapsedItems((current) => ({
+      ...current,
+      [key]: !current[key]
+    }));
   }
 
   function validateCurrentSession(): boolean {
@@ -214,6 +293,7 @@ function SessionBuilder({
     }
 
     setSession(result.session);
+    setCollapsedItems(buildCollapsedState(result.session));
     setValidationErrors([]);
     setNotice(`Imported "${result.session.title}".`);
     event.target.value = '';
@@ -234,111 +314,179 @@ function SessionBuilder({
     URL.revokeObjectURL(url);
   }
 
-  function renderExerciseEditor(exercise: Exercise, path: AnyExercisePath, titlePrefix?: string): JSX.Element {
+  async function handleSaveToSupabase(): Promise<void> {
+    const validation = validateSessionDefinition(session);
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors);
+      setNotice(null);
+      return;
+    }
+
+    setValidationErrors([]);
+    setSaving(true);
+    try {
+      const response = await fetch('/api/sessions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(session)
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        errors?: string[];
+        error?: string;
+      };
+
+      if (!response.ok) {
+        if (payload.errors?.length) {
+          setValidationErrors(payload.errors);
+        } else {
+          setValidationErrors([payload.error ?? `Save failed (${response.status}).`]);
+        }
+        setNotice(null);
+        return;
+      }
+
+      setNotice('Saved to Supabase.');
+    } catch {
+      setValidationErrors(['Network error while saving.']);
+      setNotice(null);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function renderExerciseEditor(
+    exercise: Exercise,
+    path: AnyExercisePath,
+    options?: {
+      titlePrefix?: string;
+      heading?: string;
+      actions?: JSX.Element;
+    }
+  ): JSX.Element {
     const isLoadBearing = 'load' in exercise.equipment;
     const loadValue = 'load' in exercise.equipment ? exercise.equipment.load?.value : undefined;
+    const collapseKey = getExerciseCollapseKey(exercise.exercise_id);
+    const collapsed = isCollapsed(collapseKey);
+    const title = options?.titlePrefix ? `${options.titlePrefix}: ${exercise.title}` : exercise.title;
 
     return (
       <div className="rounded-lg border border-border/70 bg-surface/40 p-4">
-        <div className="grid gap-4 lg:grid-cols-2">
-          <EditorField label={titlePrefix ? `${titlePrefix} title` : 'exercise title'}>
-            <TextInput
-              value={exercise.title}
-              onChange={(value) => applyUpdate((current) => updateExerciseTitle(current, path, value))}
-              placeholder="Exercise title"
-            />
-          </EditorField>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            {options?.heading ? (
+              <div className="text-xs uppercase tracking-wide-ui text-muted">{options.heading}</div>
+            ) : null}
+            <div className="mt-1 text-base font-medium text-text">{title}</div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <ActionButton variant="ghost" onClick={() => toggleCollapsed(collapseKey)}>
+              {collapsed ? 'expand' : 'collapse'}
+            </ActionButton>
+            {options?.actions}
+          </div>
+        </div>
 
-          <EditorField label="equipment">
-            <SelectInput
-              value={exercise.equipment.kind}
-              onChange={(value) => applyUpdate((current) => updateExerciseEquipmentKind(current, path, value as Exercise['equipment']['kind']))}
-              options={equipmentOptions.map((option) => ({
-                value: option,
-                label: option.replace(/_/g, ' ')
-              }))}
-            />
-          </EditorField>
-
-          <EditorField label="prescription type">
-            <SelectInput
-              value={exercise.prescription.mode}
-              onChange={(value) => applyUpdate((current) => updateExercisePrescriptionMode(current, path, value as Exercise['prescription']['mode']))}
-              options={[
-                { value: 'reps', label: 'reps' },
-                { value: 'rep_range', label: 'rep range' },
-                { value: 'time', label: 'time' }
-              ]}
-            />
-          </EditorField>
-
-          {exercise.prescription.mode === 'reps' ? (
-            <EditorField label="reps">
-              <NumberInput
-                value={exercise.prescription.reps}
-                onChange={(value) => applyUpdate((current) => updateExercisePrescriptionValue(current, path, 'reps', value ?? 10))}
-                minimum={1}
+        {!collapsed ? (
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <EditorField label={options?.titlePrefix ? `${options.titlePrefix} title` : 'exercise title'}>
+              <TextInput
+                value={exercise.title}
+                onChange={(value) => applyUpdate((current) => updateExerciseTitle(current, path, value))}
+                placeholder="Exercise title"
               />
             </EditorField>
-          ) : null}
 
-          {exercise.prescription.mode === 'rep_range' ? (
-            <>
-              <EditorField label="min reps">
+            <EditorField label="equipment">
+              <SelectInput
+                value={exercise.equipment.kind}
+                onChange={(value) => applyUpdate((current) => updateExerciseEquipmentKind(current, path, value as Exercise['equipment']['kind']))}
+                options={equipmentOptions.map((option) => ({
+                  value: option,
+                  label: option.replace(/_/g, ' ')
+                }))}
+              />
+            </EditorField>
+
+            <EditorField label="prescription type">
+              <SelectInput
+                value={exercise.prescription.mode}
+                onChange={(value) => applyUpdate((current) => updateExercisePrescriptionMode(current, path, value as Exercise['prescription']['mode']))}
+                options={[
+                  { value: 'reps', label: 'reps' },
+                  { value: 'rep_range', label: 'rep range' },
+                  { value: 'time', label: 'time' }
+                ]}
+              />
+            </EditorField>
+
+            {exercise.prescription.mode === 'reps' ? (
+              <EditorField label="reps">
                 <NumberInput
-                  value={exercise.prescription.min_reps}
-                  onChange={(value) => applyUpdate((current) => updateExercisePrescriptionValue(current, path, 'min_reps', value ?? 8))}
+                  value={exercise.prescription.reps}
+                  onChange={(value) => applyUpdate((current) => updateExercisePrescriptionValue(current, path, 'reps', value ?? 10))}
                   minimum={1}
                 />
               </EditorField>
-              <EditorField label="max reps">
+            ) : null}
+
+            {exercise.prescription.mode === 'rep_range' ? (
+              <>
+                <EditorField label="min reps">
+                  <NumberInput
+                    value={exercise.prescription.min_reps}
+                    onChange={(value) => applyUpdate((current) => updateExercisePrescriptionValue(current, path, 'min_reps', value ?? 8))}
+                    minimum={1}
+                  />
+                </EditorField>
+                <EditorField label="max reps">
+                  <NumberInput
+                    value={exercise.prescription.max_reps}
+                    onChange={(value) => applyUpdate((current) => updateExercisePrescriptionValue(current, path, 'max_reps', value ?? 12))}
+                    minimum={1}
+                  />
+                </EditorField>
+              </>
+            ) : null}
+
+            {exercise.prescription.mode === 'time' ? (
+              <EditorField label="seconds">
                 <NumberInput
-                  value={exercise.prescription.max_reps}
-                  onChange={(value) => applyUpdate((current) => updateExercisePrescriptionValue(current, path, 'max_reps', value ?? 12))}
+                  value={exercise.prescription.seconds}
+                  onChange={(value) => applyUpdate((current) => updateExercisePrescriptionValue(current, path, 'seconds', value ?? 60))}
                   minimum={1}
                 />
               </EditorField>
-            </>
-          ) : null}
+            ) : null}
 
-          {exercise.prescription.mode === 'time' ? (
-            <EditorField label="seconds">
-              <NumberInput
-                value={exercise.prescription.seconds}
-                onChange={(value) => applyUpdate((current) => updateExercisePrescriptionValue(current, path, 'seconds', value ?? 60))}
-                minimum={1}
-              />
-            </EditorField>
-          ) : null}
+            {isLoadBearing ? (
+              <EditorField label="load">
+                <NumberInput
+                  value={loadValue}
+                  onChange={(value) => applyUpdate((current) => updateExerciseLoadValue(current, path, value ?? 10))}
+                  minimum={0}
+                />
+              </EditorField>
+            ) : null}
 
-          {isLoadBearing ? (
-            <EditorField label="load">
+            <EditorField label="rest after">
               <NumberInput
-                value={loadValue}
-                onChange={(value) => applyUpdate((current) => updateExerciseLoadValue(current, path, value ?? 10))}
+                value={exercise.rest_after_seconds}
+                onChange={(value) => applyUpdate((current) => updateExerciseRest(current, path, value))}
                 minimum={0}
               />
             </EditorField>
-          ) : null}
 
-          <EditorField label="rest after">
-            <NumberInput
-              value={exercise.rest_after_seconds}
-              onChange={(value) => applyUpdate((current) => updateExerciseRest(current, path, value))}
-              minimum={0}
-            />
-          </EditorField>
-
-          <div className="lg:col-span-2">
-            <EditorField label="reference link">
-              <TextInput
-                value={exercise.link?.url ?? ''}
-                onChange={(value) => applyUpdate((current) => updateExerciseLink(current, path, value ? { url: value } : undefined))}
-                placeholder="https://example.com/exercise"
-              />
-            </EditorField>
+            <div className="lg:col-span-2">
+              <EditorField label="reference link">
+                <TextInput
+                  value={exercise.link?.url ?? ''}
+                  onChange={(value) => applyUpdate((current) => updateExerciseLink(current, path, value ? { url: value } : undefined))}
+                  placeholder="https://example.com/exercise"
+                />
+              </EditorField>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
     );
   }
@@ -464,11 +612,16 @@ function SessionBuilder({
   }
 
   function renderBlockEditor(block: Block, path: BlockPath): JSX.Element {
+    const blockCollapseKey = getBlockCollapseKey(block.block_id);
+
     return (
       <EditorPanel
         key={block.block_id}
-        title={`Block ${path.blockIndex + 1}`}
-        subtitle={BLOCK_TYPE_LABELS[block.block_type]}
+        title={block.title || `Block ${path.blockIndex + 1}`}
+        subtitle={`Block ${path.blockIndex + 1} · ${BLOCK_TYPE_LABELS[block.block_type]}`}
+        collapsible
+        collapsed={isCollapsed(blockCollapseKey)}
+        onToggleCollapse={() => toggleCollapsed(blockCollapseKey)}
         actions={
           <RowActions
             onMoveUp={() => applyUpdate((current) => moveBlock(current, path, -1))}
@@ -522,7 +675,10 @@ function SessionBuilder({
                             ...path,
                             pairIndex,
                             pairExerciseIndex: pairExerciseIndex as 0 | 1
-                          } satisfies SupersetExercisePath, pairExerciseIndex === 0 ? 'A' : 'B')}
+                          } satisfies SupersetExercisePath, {
+                            titlePrefix: pairExerciseIndex === 0 ? 'A' : 'B',
+                            heading: `pair ${pairIndex + 1}`
+                          })}
                         </div>
                       ))}
                     </div>
@@ -530,16 +686,17 @@ function SessionBuilder({
                 ))
               : block.exercises.map((exercise, exerciseIndex) => (
                   <div key={exercise.exercise_id}>
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-                      <div className="text-sm uppercase tracking-wide-ui text-muted">exercise {exerciseIndex + 1}</div>
-                      <RowActions
-                        onMoveUp={() => applyUpdate((current) => moveExercise(current, { ...path, exerciseIndex }, -1))}
-                        onMoveDown={() => applyUpdate((current) => moveExercise(current, { ...path, exerciseIndex }, 1))}
-                        onRemove={() => applyUpdate((current) => removeExercise(current, { ...path, exerciseIndex }))}
-                        removeLabel="remove exercise"
-                      />
-                    </div>
-                    {renderExerciseEditor(exercise, { ...path, exerciseIndex } satisfies ExercisePath)}
+                    {renderExerciseEditor(exercise, { ...path, exerciseIndex } satisfies ExercisePath, {
+                      heading: `exercise ${exerciseIndex + 1}`,
+                      actions: (
+                        <RowActions
+                          onMoveUp={() => applyUpdate((current) => moveExercise(current, { ...path, exerciseIndex }, -1))}
+                          onMoveDown={() => applyUpdate((current) => moveExercise(current, { ...path, exerciseIndex }, 1))}
+                          onRemove={() => applyUpdate((current) => removeExercise(current, { ...path, exerciseIndex }))}
+                          removeLabel="remove exercise"
+                        />
+                      )
+                    })}
                   </div>
                 ))}
           </div>
@@ -581,6 +738,9 @@ function SessionBuilder({
           </ActionButton>
           <ActionButton variant="primary" onClick={validateCurrentSession}>
             validate
+          </ActionButton>
+          <ActionButton variant="primary" disabled={saving} onClick={() => void handleSaveToSupabase()}>
+            {saving ? 'saving…' : 'save to Supabase'}
           </ActionButton>
           <ActionButton variant="primary" onClick={handleExport}>
             export JSON
@@ -647,8 +807,11 @@ function SessionBuilder({
         {session.stages.map((stage, stageIndex) => (
           <EditorPanel
             key={`${stage.stage_id}-${stageIndex}`}
-            title={`Stage ${stageIndex + 1}`}
-            subtitle={stage.stage_id}
+            title={stage.title || `Stage ${stageIndex + 1}`}
+            subtitle={`Stage ${stageIndex + 1} · ${stage.stage_id}`}
+            collapsible
+            collapsed={isCollapsed(getStageCollapseKey(stage, stageIndex))}
+            onToggleCollapse={() => toggleCollapsed(getStageCollapseKey(stage, stageIndex))}
             actions={
               <RowActions
                 onMoveUp={() => applyUpdate((current) => moveStage(current, stageIndex, -1))}
@@ -680,9 +843,12 @@ function SessionBuilder({
                 {(stage.sections ?? []).map((section, sectionIndex) => (
                   <EditorPanel
                     key={section.section_id}
-                    title={`Section ${sectionIndex + 1}`}
-                    subtitle={section.title}
+                    title={section.title || `Section ${sectionIndex + 1}`}
+                    subtitle={`Section ${sectionIndex + 1}`}
                     className="bg-surface/20"
+                    collapsible
+                    collapsed={isCollapsed(getSectionCollapseKey(section.section_id))}
+                    onToggleCollapse={() => toggleCollapsed(getSectionCollapseKey(section.section_id))}
                     actions={
                       <RowActions
                         onMoveUp={() => applyUpdate((current) => moveSection(current, { stageIndex, sectionIndex }, -1))}
