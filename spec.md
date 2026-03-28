@@ -14,7 +14,7 @@ The product should feel like a calm instrument rather than a generic fitness app
 - **`PATCH /api/sessions/order`** accepts `{ session_ids: string[] }` (full ordered list, no duplicates) and updates **`sort_order`** for each row when Supabase is configured. Used by the home session list when drag-reorder is enabled.
 - **`DELETE /api/sessions/[sessionId]`** removes the matching row from **`session_definitions`** when Supabase is configured. Used from **`/builder/[id]`** only (not **`/builder/new`**) after the user confirms in a modal.
 - The builder is the most complete flow: structural editing, block-type conversion, import/export, schema validation, optional **delete session**, and a compact header: **save to Supabase** is shown only when the editor has **unsaved changes** (working copy differs from the last loaded or successfully saved snapshot). **validate**, **import JSON**, **export JSON**, and **delete session** live under a **settings cog** dropdown (with **lucide-react** icon controls for expand/collapse, reorder, and remove on stage/section/block/exercise rows). Builder and home both use the shared **`components/ui/CogIcon.tsx`** SVG for that cog.
-- **`SessionList`** (**`/home`**): **settings cog** menu with **create new session** (**`/builder/new`**), **import JSON** (client **`parseImportedSession`** then **`PUT /api/sessions`** when Supabase is configured), and **copy JSON schema** (pretty-printed **`session-definition.schema.json`** to the clipboard, transient on-page **JSON schema copied** confirmation).
+- **`SessionList`** (**`/home`**): **settings cog** menu with **create new session** (**`/builder/new`**), **import JSON** (file → **`parseImportedSession`** then **`PUT /api/sessions`**), **paste JSON** (modal with textarea, **cancel** / **import**; validates then same **`PUT`**; errors listed with schema paths for correction), and **copy JSON schema** (clipboard, transient **JSON schema copied** confirmation).
 - Builder collapse state for sections, blocks, and exercises is UI-only and is not part of exported session JSON.
 - **Session metadata:** optional **`description`** (multi-line, schema `maxLength` 2000) is documented in the JSON schema, edited in the builder (**session description** textarea), and shown on the **session detail** page when present.
 - **Play mode:** the playback compiler emits **`exercise`**, **`rest`**, and **`circuit_time_play`** steps (no structural stage/section/block marker steps). Normal **exercise** / **rest** lines use a **live countdown** on rests (`mm:ss`), auto-advance at zero, and skip. **← back** (under **← exit**) returns to the previous step when `index > 0`. **`circuit_time` blocks** compile to a **single `circuit_time_play` step**: a **block-level countdown** from `duration_seconds`, **`[ start ]`** before the clock runs, **`[ pause ]` / `[ resume ]`**, cycling **exercises** in order with **`[ complete ]`**; optional **per-exercise** `rest_after_seconds` shows an in-block rest timer (skip supported). While the block clock runs, time counts down during rests too. When time reaches **zero**, the UI shows **time up — finish this step**; the user **finishes the current exercise or rest**, then play **advances past the circuit** (no extra rest after time up if they were on an exercise). After the final plan step, a **completion splash** (CONGRATULATIONS / Session completed); **tap** navigates to **`/home`**.
@@ -63,7 +63,7 @@ Supported concepts:
 8. Root `/` should redirect to `/home`
 
 ### API (server)
-- **`PUT /api/sessions`** — body: full `SessionDefinition` JSON; validates against the canonical schema; upserts into Supabase when configured (including **`sort_order`**). Used by the builder save action and by **adjust / done**.
+- **`PUT /api/sessions`** — body: full `SessionDefinition` JSON; validates against the canonical schema; upserts into Supabase when configured (including **`sort_order`**). Used by the builder **save to Supabase**, **adjust / done**, and the **home** list **import JSON** (file) and **paste JSON** (modal) flows after client-side **`parseImportedSession`**.
 - **`PATCH /api/sessions/order`** — body: `{ session_ids: string[] }` (every session exactly once, no duplicates); updates **`sort_order`** by array index. Used by the home list when Supabase is configured.
 - **`DELETE /api/sessions/[sessionId]`** — deletes the row with that **`session_id`** from Supabase when configured. Used by the builder **delete session** flow after confirmation.
 
@@ -82,12 +82,13 @@ UI:
 - subtle row layout
 - no dashboard stats
 - when Supabase is configured: **drag handle** per row (**@dnd-kit**, vertical list); row body remains a link to session detail
-- **settings cog** (same icon as the session builder) opens a dropdown with **create new session**, **import JSON**, and **copy JSON schema** (copies the bundled session-definition JSON Schema to the clipboard, pretty-printed, with on-page **JSON schema copied** confirmation); click-outside and **Escape** close the menu
+- **settings cog** (same icon as the session builder) opens a dropdown with **create new session**, **import JSON**, **paste JSON**, and **copy JSON schema**; click-outside and **Escape** close the menu. **Paste JSON** opens a modal (backdrop / **Escape** / **cancel** closes): large textarea, **import** runs validation then **`PUT /api/sessions`**; failures show a bulleted list of messages (including JSON Schema paths from `parseImportedSession` or API errors).
 
 Primary interactions:
 - tap row -> Session Detail
 - **create new session** (under settings) -> Session Builder (**`/builder/new`**)
 - **import JSON** (under settings): pick a file; client validates with `parseImportedSession`, then **`PUT /api/sessions`** upserts into Supabase when configured (same as builder save). If Supabase is not configured (**503**), use the builder **settings → import JSON** to load a draft client-side only.
+- **paste JSON** (under settings): modal to paste AI-generated (or any) session JSON; **cancel** aborts; **import** validates and uploads like file import; errors are listed explicitly for correction.
 - **copy JSON schema** (under settings): copies canonical schema for use with external tools (e.g. AI-generated session JSON for later import)
 - drag handle -> reorder list; order **PATCH**ed to Supabase
 

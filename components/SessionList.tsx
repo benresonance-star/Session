@@ -12,7 +12,8 @@ import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } 
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { ActionButton } from '@/components/ui/ActionButton';
 import { CogIcon } from '@/components/ui/CogIcon';
 import { safeServiceErrorMessage } from '@/lib/safe-service-error';
 import { parseImportedSession } from '@/lib/session-validation';
@@ -82,6 +83,10 @@ export function SessionList({
   const [importing, setImporting] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [schemaCopyNotice, setSchemaCopyNotice] = useState<string | null>(null);
+  const [pasteModalOpen, setPasteModalOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [pasteErrors, setPasteErrors] = useState<string[]>([]);
+  const [pasteSubmitting, setPasteSubmitting] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -118,6 +123,27 @@ export function SessionList({
     const timer = window.setTimeout(() => setSchemaCopyNotice(null), 3000);
     return () => window.clearTimeout(timer);
   }, [schemaCopyNotice]);
+
+  const closePasteModal = useCallback(() => {
+    setPasteModalOpen(false);
+    setPasteText('');
+    setPasteErrors([]);
+  }, []);
+
+  useEffect(() => {
+    if (!pasteModalOpen) {
+      return;
+    }
+    function handlePasteModalKey(event: KeyboardEvent): void {
+      if (event.key !== 'Escape' || pasteSubmitting) {
+        return;
+      }
+      event.preventDefault();
+      closePasteModal();
+    }
+    document.addEventListener('keydown', handlePasteModalKey);
+    return () => document.removeEventListener('keydown', handlePasteModalKey);
+  }, [pasteModalOpen, pasteSubmitting, closePasteModal]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -162,6 +188,42 @@ export function SessionList({
     }
   }
 
+  async function putSessionToSupabase(
+    session: SessionDefinition
+  ): Promise<{ ok: true } | { ok: false; messages: string[] }> {
+    try {
+      const response = await fetch('/api/sessions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(session)
+      });
+      const contentType = response.headers.get('content-type') ?? '';
+      let payload: { errors?: string[]; error?: string } = {};
+      if (contentType.includes('application/json')) {
+        payload = (await response.json().catch(() => ({}))) as typeof payload;
+      }
+
+      if (!response.ok) {
+        if (payload.errors?.length) {
+          return { ok: false, messages: payload.errors.map((e) => safeServiceErrorMessage(e)) };
+        }
+        return {
+          ok: false,
+          messages: [
+            safeServiceErrorMessage(payload.error) ||
+              (response.status === 503
+                ? 'Import to the list requires Supabase. Use the session builder settings menu to import JSON into a local draft.'
+                : `Import failed (${response.status}).`)
+          ]
+        };
+      }
+
+      return { ok: true };
+    } catch {
+      return { ok: false, messages: ['Network error while importing.'] };
+    }
+  }
+
   async function handleImportJSON(event: ChangeEvent<HTMLInputElement>): Promise<void> {
     const file = event.target.files?.[0];
     if (!file) {
@@ -180,28 +242,9 @@ export function SessionList({
         return;
       }
 
-      const response = await fetch('/api/sessions', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(result.session)
-      });
-      const contentType = response.headers.get('content-type') ?? '';
-      let payload: { errors?: string[]; error?: string } = {};
-      if (contentType.includes('application/json')) {
-        payload = (await response.json().catch(() => ({}))) as typeof payload;
-      }
-
-      if (!response.ok) {
-        if (payload.errors?.length) {
-          setImportError(payload.errors.map((e) => safeServiceErrorMessage(e)).join('; '));
-        } else {
-          setImportError(
-            safeServiceErrorMessage(payload.error) ||
-              (response.status === 503
-                ? 'Import to the list requires Supabase. Use the session builder settings menu to import JSON into a local draft.'
-                : `Import failed (${response.status}).`)
-          );
-        }
+      const put = await putSessionToSupabase(result.session);
+      if (!put.ok) {
+        setImportError(put.messages.join('; '));
         return;
       }
 
@@ -211,6 +254,33 @@ export function SessionList({
     } finally {
       setImporting(false);
       event.target.value = '';
+    }
+  }
+
+  async function handlePasteImport(): Promise<void> {
+    setPasteErrors([]);
+    setPasteSubmitting(true);
+
+    try {
+      const result = parseImportedSession(pasteText);
+
+      if (!result.session) {
+        setPasteErrors(result.errors.length ? result.errors : ['Invalid session JSON (could not parse or validate).']);
+        return;
+      }
+
+      const put = await putSessionToSupabase(result.session);
+      if (!put.ok) {
+        setPasteErrors(put.messages);
+        return;
+      }
+
+      closePasteModal();
+      router.refresh();
+    } catch {
+      setPasteErrors(['Network error while importing.']);
+    } finally {
+      setPasteSubmitting(false);
     }
   }
 
@@ -238,7 +308,7 @@ export function SessionList({
           <div className="relative" ref={settingsMenuRef}>
             <button
               type="button"
-              disabled={importing}
+              disabled={importing || pasteSubmitting}
               className="inline-flex items-center justify-center rounded-md border border-border p-2 text-muted transition-colors hover:border-text/30 hover:text-text disabled:pointer-events-none disabled:opacity-40"
               aria-expanded={settingsMenuOpen}
               aria-haspopup="menu"
@@ -250,7 +320,7 @@ export function SessionList({
             {settingsMenuOpen ? (
               <div
                 role="menu"
-                className="absolute right-0 z-40 mt-1 min-w-[11rem] rounded-md border border-line bg-panel py-1 text-sm shadow-none"
+                className="absolute right-0 z-40 mt-1 min-w-[12rem] rounded-md border border-line bg-panel py-1 text-sm shadow-none"
               >
                 <button
                   type="button"
@@ -274,6 +344,20 @@ export function SessionList({
                   }}
                 >
                   {importing ? 'importing…' : 'import JSON'}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={importing || pasteSubmitting}
+                  className="flex w-full px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text disabled:pointer-events-none disabled:opacity-40"
+                  onClick={() => {
+                    setSettingsMenuOpen(false);
+                    setPasteText('');
+                    setPasteErrors([]);
+                    setPasteModalOpen(true);
+                  }}
+                >
+                  paste JSON
                 </button>
                 <button
                   type="button"
@@ -328,6 +412,69 @@ export function SessionList({
           )}
         </div>
       </div>
+
+      {pasteModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8"
+          role="presentation"
+          onClick={() => {
+            if (!pasteSubmitting) {
+              closePasteModal();
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="paste-json-title"
+            className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-line bg-panel shadow-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="paste-json-title" className="border-b border-line px-6 py-4 text-lg font-semibold text-text">
+              Paste session JSON
+            </h2>
+            <p className="px-6 pt-3 text-sm text-muted">
+              Paste a full session definition. The app validates it, then uploads to Supabase when configured. Each error below includes the JSON path or field so you can fix it.
+            </p>
+            <div className="min-h-0 flex-1 overflow-auto px-6 py-3">
+              <label htmlFor="paste-json-textarea" className="sr-only">
+                Session JSON
+              </label>
+              <textarea
+                id="paste-json-textarea"
+                value={pasteText}
+                onChange={(e) => {
+                  setPasteText(e.target.value);
+                  setPasteErrors([]);
+                }}
+                spellCheck={false}
+                placeholder="{ … }"
+                className="min-h-[14rem] w-full resize-y rounded-md border border-border bg-bg px-3 py-2 font-mono text-xs leading-relaxed text-text outline-none transition-colors focus:border-accent"
+              />
+            </div>
+            {pasteErrors.length ? (
+              <div className="border-t border-line px-6 py-3">
+                <p className="text-sm font-medium text-red-500/90">Validation or save failed:</p>
+                <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-red-500/90">
+                  {pasteErrors.map((err, i) => (
+                    <li key={i} className="break-words">
+                      {err}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap justify-end gap-3 border-t border-line px-6 py-4">
+              <ActionButton variant="ghost" type="button" disabled={pasteSubmitting} onClick={closePasteModal}>
+                cancel
+              </ActionButton>
+              <ActionButton variant="primary" type="button" disabled={pasteSubmitting} onClick={() => void handlePasteImport()}>
+                {pasteSubmitting ? 'importing…' : 'import'}
+              </ActionButton>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
