@@ -17,9 +17,10 @@ The product should feel like a calm instrument rather than a generic fitness app
 - **`SessionList`** (**`/home`**): **settings cog** menu with **create new session** (**`/builder/new`**), **import JSON** (file → **`parseImportedSession`** then **`PUT /api/sessions`**), **paste JSON** (modal with textarea, **cancel** / **import**; validates then same **`PUT`**; errors listed with schema paths for correction), and **copy JSON schema** (clipboard, transient **JSON schema copied** confirmation).
 - Builder collapse state for sections, blocks, and exercises is UI-only and is not part of exported session JSON.
 - **Session metadata:** optional **`description`** (multi-line, schema `maxLength` 2000) is documented in the JSON schema, edited in the builder (**session description** textarea), and shown on the **session detail** page when present.
-- **Play mode:** the playback compiler emits **`exercise`**, **`rest`**, and **`circuit_time_play`** steps (no structural stage/section/block marker steps). Normal **exercise** / **rest** lines use a **live countdown** on rests (`mm:ss`), auto-advance at zero, and skip. **← back** (under **← exit**) returns to the previous step when `index > 0`. **`circuit_time` blocks** compile to a **single `circuit_time_play` step**: a **block-level countdown** from `duration_seconds`, **`[ start ]`** before the clock runs, **`[ pause ]` / `[ resume ]`**, cycling **exercises** in order with **`[ complete ]`**; optional **per-exercise** `rest_after_seconds` shows an in-block rest timer (skip supported). While the block clock runs, time counts down during rests too. When time reaches **zero**, the UI shows **time up — finish this step**; the user **finishes the current exercise or rest**, then play **advances past the circuit** (no extra rest after time up if they were on an exercise). After the final plan step, a **completion splash** (CONGRATULATIONS / Session completed); **tap** navigates to **`/home`**.
+- **Play mode:** the playback compiler emits **`exercise`**, **`rest`**, and **`circuit_time_play`** steps (no structural stage/section/block marker steps). Normal **exercise** steps with a **time** prescription use a **work countdown** (`mm:ss`) with **`[ start ]`**, **`[ pause ]` / `[ resume ]`**, **`[ complete ]`** (early exit), and **auto-advance at zero**; **`exercise`** steps with **reps** / **rep range** use **`[ complete ]`** only. **Rest** steps use a **live countdown** (`mm:ss`), auto-advance at zero, and skip. **← back** (under **← exit**) returns to the previous step when `index > 0`. **`circuit_time` blocks** compile to a **single `circuit_time_play` step**: a **block-level countdown** from `duration_seconds`, **`[ start ]`** before the clock runs, **`[ pause ]` / `[ resume ]`**, cycling **exercises** in order with **`[ complete ]`**; optional **per-exercise** `rest_after_seconds` shows an in-block rest timer (skip supported). While the block clock runs, time counts down during rests too. When time reaches **zero**, the UI shows **time up — finish this step**; the user **finishes the current exercise or rest**, then play **advances past the circuit** (no extra rest after time up if they were on an exercise). After the final plan step, a **completion splash** (CONGRATULATIONS / Session completed); **tap** navigates to **`/home`**.
 - **Play resume and adjust:** **`/play/[id]?at=N`** (from the server, `N` clamped to a valid step index) restores the **playback step index** after leaving play. **Tap to adjust** links include **`returnStep`** so **done** on **`/edit/...`** can navigate back with **`?at=`**. **`AdjustScreen`** applies edits via **`applyExerciseAdjustments`** in **`lib/session-apply.ts`** (including supersets), validates, **`PUT`s** the full session, then returns to play. If Supabase returns **503**, a message is shown and play still resumes at **`?at=`** without persisting.
 - **Timer persistence across adjust:** For **`circuit_time_play`** and plan-level **rest** steps, **sessionStorage** snapshots (keyed by session id, step index, and `step_id`) preserve **countdown and UI phase** when returning from adjust with **`?at=`**; opening **`/play/[id]`** without **`at`** clears those keys for a fresh run. A short **gate** runs before play UI mounts so clears happen before panels rehydrate.
+- **Resume later / paused badge:** **`lib/session-pause-storage.ts`** stores **`{ v, at }`** in **`localStorage`** under **`workoutSessionPause:`** + **`session_id`**. Play’s **← exit** links to **`/exit?sessionId=…&at=planIndex`**. Completing a run (past the last step), **end session** on the exit sheet, or **Paused** / **cancel** on home clears the entry as appropriate.
 - **Next.js:** `serverExternalPackages: ['@supabase/supabase-js']` in `next.config.mjs` avoids broken server vendor chunks for Supabase (e.g. missing `./vendor-chunks/@supabase.js`); clear **`.next`** after config changes if dev misbehaves.
 - Run history, durable run state, and post-run mutation workflows are still future work.
 
@@ -59,7 +60,7 @@ Supported concepts:
 4. `/builder/new` — New session builder starting point
 5. `/play/[id]` — Play mode (exercise or rest state)
 6. `/edit/[sessionId]/[exerciseId]` — Adjust exercise values during a run
-7. `/exit?sessionId=...` — Exit session sheet
+7. `/exit?sessionId=...&at=N` — Exit session sheet (`N` = current playback step index for resume / cancel)
 8. Root `/` should redirect to `/home`
 
 ### API (server)
@@ -91,6 +92,7 @@ Primary interactions:
 - **paste JSON** (under settings): modal to paste AI-generated (or any) session JSON; **cancel** aborts; **import** validates and uploads like file import; errors are listed explicitly for correction.
 - **copy JSON schema** (under settings): copies canonical schema for use with external tools (e.g. AI-generated session JSON for later import)
 - drag handle -> reorder list; order **PATCH**ed to Supabase
+- **Paused run (local only):** if the user chose **resume later** on the exit sheet, **`localStorage`** holds a snapshot for that **`session_id`** (step index). On the list, **Paused** opens **`/play/[id]?at=…`**, clears that snapshot, and starts from the saved step; **cancel** (next to **Paused**) clears the snapshot only and does not navigate. Other tabs can update the badge via the **`storage`** event.
 
 ### 2. Session Detail / Preview
 Purpose:
@@ -139,8 +141,9 @@ Purpose:
 UI:
 - top line: **`← exit`** and, when not on the first step, **`← back`** (returns to the previous playback step); stage / section context; round/set progress where applicable
 - large exercise title
-- prescription line (`10 reps @ 16 kg`)
-- one primary action `[ complete ]`
+- prescription line (`10 reps @ 16 kg` or `30s` for time)
+- **Reps / rep range:** one primary action `[ complete ]` to advance
+- **Time prescription:** large **`mm:ss`** countdown; **`[ start ]`** begins the work timer; **`[ pause ]` / `[ resume ]`** while running; **`[ complete ]`** always available to finish early; at **zero** (while running, not paused), brief **time up** copy then **auto-advance** to the next plan step (same idea as rest). Timer state is snapshotted to **`sessionStorage`** under the same **`playTimer:`** key pattern as rest when returning from adjust with **`?at=`** (invalid snapshot if prescription seconds changed is ignored).
 - persistent `next` preview
 - subtle hint that tapping the prescription opens adjust mode
 
@@ -193,11 +196,15 @@ UI:
 Purpose:
 - safely leave a session
 
+Entry: **`/exit?sessionId=…&at=N`** where **`N`** is the current plan step index (from play’s **← exit** link).
+
 UI:
 - `exit session?`
-- `resume later`
-- `end session`
-- `cancel`
+- **`resume later`** — writes the paused snapshot to **`localStorage`** for this session, then navigates to **`/home`** (list shows **Paused** for that session).
+- **`end session`** — removes any paused snapshot for this session, then navigates to **`/home`**.
+- **`cancel`** — navigates back to **`/play/[sessionId]?at=N`** without writing or clearing pause state (same as closing the sheet without choosing resume/end).
+
+**Note:** **cancel** here returns to play. **cancel** on the home list (next to **Paused**) only clears the saved pause and stays on **`/home`**.
 
 ## Data architecture
 - `SessionDefinition`: authoring / import-export format (includes optional `description`, `tags`, `duration_minutes`, `notes`, etc.)

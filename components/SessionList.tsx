@@ -17,10 +17,49 @@ import { ActionButton } from '@/components/ui/ActionButton';
 import { CogIcon } from '@/components/ui/CogIcon';
 import { safeServiceErrorMessage } from '@/lib/safe-service-error';
 import { parseImportedSession } from '@/lib/session-validation';
+import {
+  clearPausedSession,
+  getPausedStep,
+  sessionPauseStorageKeyPrefix
+} from '@/lib/session-pause-storage';
 import sessionDefinitionSchema from '@/schema/session-definition.schema.json';
 import type { SessionDefinition } from '@/types/session';
 
 const SCHEMA_COPY_SUCCESS = 'JSON schema copied';
+
+function SessionPauseControls({
+  sessionId,
+  pausedAt,
+  onResume,
+  onCancelPause
+}: {
+  sessionId: string;
+  pausedAt: number | null;
+  onResume: (sessionId: string, at: number) => void;
+  onCancelPause: (sessionId: string) => void;
+}): JSX.Element | null {
+  if (pausedAt == null) {
+    return null;
+  }
+  return (
+    <span className="inline-flex shrink-0 items-center gap-2 text-sm">
+      <button
+        type="button"
+        className="text-accent transition-colors hover:text-text"
+        onClick={() => onResume(sessionId, pausedAt)}
+      >
+        Paused
+      </button>
+      <button
+        type="button"
+        className="text-muted transition-colors hover:text-text"
+        onClick={() => onCancelPause(sessionId)}
+      >
+        cancel
+      </button>
+    </span>
+  );
+}
 
 function GripIcon(): JSX.Element {
   return (
@@ -35,7 +74,17 @@ function GripIcon(): JSX.Element {
   );
 }
 
-function SortableSessionRow({ session }: { session: SessionDefinition }): JSX.Element {
+function SortableSessionRow({
+  session,
+  pausedAt,
+  onResumePaused,
+  onCancelPause
+}: {
+  session: SessionDefinition;
+  pausedAt: number | null;
+  onResumePaused: (sessionId: string, at: number) => void;
+  onCancelPause: (sessionId: string) => void;
+}): JSX.Element {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: session.session_id });
 
   const style = {
@@ -58,13 +107,23 @@ function SortableSessionRow({ session }: { session: SessionDefinition }): JSX.El
       >
         <GripIcon />
       </button>
-      <Link href={`/session/${session.session_id}`} className="min-w-0 flex-1 block">
-        <div className="text-xl font-medium">{session.title}</div>
-        <div className="mt-2 text-sm text-muted">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <Link href={`/session/${session.session_id}`} className="min-w-0 text-xl font-medium text-text hover:text-next">
+            {session.title}
+          </Link>
+          <SessionPauseControls
+            sessionId={session.session_id}
+            pausedAt={pausedAt}
+            onResume={onResumePaused}
+            onCancelPause={onCancelPause}
+          />
+        </div>
+        <Link href={`/session/${session.session_id}`} className="mt-2 block text-sm text-muted hover:text-text/80">
           {session.duration_minutes != null ? `${session.duration_minutes} min` : '—'}
           {(session.tags ?? []).length ? ` · ${(session.tags ?? []).join(' · ')}` : ''}
-        </div>
-      </Link>
+        </Link>
+      </div>
     </div>
   );
 }
@@ -93,6 +152,56 @@ export function SessionList({
   useEffect(() => {
     setItems(sessions);
   }, [sessions]);
+
+  const [pausedBySession, setPausedBySession] = useState<Record<string, number>>({});
+
+  const syncPausedFromStorage = useCallback(() => {
+    const next: Record<string, number> = {};
+    for (const s of items) {
+      const at = getPausedStep(s.session_id);
+      if (at != null) {
+        next[s.session_id] = at;
+      }
+    }
+    setPausedBySession(next);
+  }, [items]);
+
+  useEffect(() => {
+    syncPausedFromStorage();
+  }, [syncPausedFromStorage]);
+
+  useEffect(() => {
+    function onStorage(event: StorageEvent): void {
+      if (!event.key?.startsWith(sessionPauseStorageKeyPrefix())) {
+        return;
+      }
+      syncPausedFromStorage();
+    }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [syncPausedFromStorage]);
+
+  const handleResumePaused = useCallback(
+    (sessionId: string, at: number): void => {
+      clearPausedSession(sessionId);
+      setPausedBySession((prev) => {
+        const next = { ...prev };
+        delete next[sessionId];
+        return next;
+      });
+      router.push(`/play/${encodeURIComponent(sessionId)}?at=${at}`);
+    },
+    [router]
+  );
+
+  const handleCancelPause = useCallback((sessionId: string): void => {
+    clearPausedSession(sessionId);
+    setPausedBySession((prev) => {
+      const next = { ...prev };
+      delete next[sessionId];
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!settingsMenuOpen) {
@@ -395,19 +504,35 @@ export function SessionList({
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => void handleDragEnd(e)}>
               <SortableContext items={items.map((s) => s.session_id)} strategy={verticalListSortingStrategy}>
                 {items.map((session) => (
-                  <SortableSessionRow key={session.session_id} session={session} />
+                  <SortableSessionRow
+                    key={session.session_id}
+                    session={session}
+                    pausedAt={pausedBySession[session.session_id] ?? null}
+                    onResumePaused={handleResumePaused}
+                    onCancelPause={handleCancelPause}
+                  />
                 ))}
               </SortableContext>
             </DndContext>
           ) : (
             items.map((session) => (
-              <Link key={session.session_id} href={`/session/${session.session_id}`} className="block border-b border-line pb-6">
-                <div className="text-xl font-medium">{session.title}</div>
-                <div className="mt-2 text-sm text-muted">
+              <div key={session.session_id} className="border-b border-line pb-6">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <Link href={`/session/${session.session_id}`} className="text-xl font-medium text-text hover:text-next">
+                    {session.title}
+                  </Link>
+                  <SessionPauseControls
+                    sessionId={session.session_id}
+                    pausedAt={pausedBySession[session.session_id] ?? null}
+                    onResume={handleResumePaused}
+                    onCancelPause={handleCancelPause}
+                  />
+                </div>
+                <Link href={`/session/${session.session_id}`} className="mt-2 block text-sm text-muted hover:text-text/80">
                   {session.duration_minutes != null ? `${session.duration_minutes} min` : '—'}
                   {(session.tags ?? []).length ? ` · ${(session.tags ?? []).join(' · ')}` : ''}
-                </div>
-              </Link>
+                </Link>
+              </div>
             ))
           )}
         </div>

@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { CircuitTimePlayStep, PlaybackPlan, RestStep } from '@/types/playback';
+import { clearPausedSession } from '@/lib/session-pause-storage';
+import type { CircuitTimePlayStep, ExerciseStep, PlaybackPlan, RestStep } from '@/types/playback';
 import type { Exercise } from '@/types/session';
 
 const PLAY_TIMER_PREFIX = 'playTimer:';
@@ -122,6 +123,51 @@ function parseRestTimerSnapshot(raw: string, step: RestStep): number | null {
       return null;
     }
     return s.remaining;
+  } catch {
+    return null;
+  }
+}
+
+const EXERCISE_TIME_SNAPSHOT_V = 1 as const;
+
+interface ExerciseTimeTimerSnapshot {
+  v: typeof EXERCISE_TIME_SNAPSHOT_V;
+  durationSeconds: number;
+  remaining: number;
+  started: boolean;
+  paused: boolean;
+}
+
+function parseExerciseTimeSnapshot(raw: string, step: ExerciseStep): ExerciseTimeTimerSnapshot | null {
+  if (step.exercise.prescription.mode !== 'time') {
+    return null;
+  }
+  const expected = step.exercise.prescription.seconds;
+  try {
+    const o = JSON.parse(raw) as unknown;
+    if (!o || typeof o !== 'object') {
+      return null;
+    }
+    const s = o as Record<string, unknown>;
+    if (s.v !== EXERCISE_TIME_SNAPSHOT_V) {
+      return null;
+    }
+    if (typeof s.durationSeconds !== 'number' || s.durationSeconds !== expected) {
+      return null;
+    }
+    if (typeof s.remaining !== 'number' || s.remaining < 0 || s.remaining > expected) {
+      return null;
+    }
+    if (typeof s.started !== 'boolean' || typeof s.paused !== 'boolean') {
+      return null;
+    }
+    return {
+      v: EXERCISE_TIME_SNAPSHOT_V,
+      durationSeconds: s.durationSeconds,
+      remaining: s.remaining,
+      started: s.started,
+      paused: s.paused
+    };
   } catch {
     return null;
   }
@@ -367,7 +413,7 @@ function CircuitTimePanel({
     return (
       <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
         <div className="mx-auto max-w-xl">
-          <PlayModeNav sessionId={sessionId} canGoBack={canGoBack} onBack={onBack} />
+          <PlayModeNav sessionId={sessionId} planIndex={planIndex} canGoBack={canGoBack} onBack={onBack} />
           <p className="mt-12 text-muted">This timed circuit has no exercises.</p>
           <button type="button" onClick={advanceAndClear} className="mt-8 text-text">
             [ continue ]
@@ -384,7 +430,7 @@ function CircuitTimePanel({
     <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
       <div className="mx-auto max-w-xl">
         <div className="flex items-start justify-between gap-4 text-sm text-muted">
-          <PlayModeNav sessionId={sessionId} canGoBack={canGoBack} onBack={onBack} />
+          <PlayModeNav sessionId={sessionId} planIndex={planIndex} canGoBack={canGoBack} onBack={onBack} />
           <div className="text-right">
             <div className="text-xs uppercase tracking-wide-ui">circuit time</div>
             <div className="mt-1 text-3xl font-semibold tabular-nums text-text">{formatBlockCountdown(blockRemaining)}</div>
@@ -447,16 +493,21 @@ function CircuitTimePanel({
 
 function PlayModeNav({
   sessionId,
+  planIndex,
   canGoBack,
   onBack
 }: {
   sessionId: string;
+  planIndex: number;
   canGoBack: boolean;
   onBack: () => void;
 }): JSX.Element {
   return (
     <div className="flex flex-col items-start gap-1">
-      <Link href={`/exit?sessionId=${sessionId}`} className="hover:text-text">
+      <Link
+        href={`/exit?sessionId=${encodeURIComponent(sessionId)}&at=${planIndex}`}
+        className="hover:text-text"
+      >
         ← exit
       </Link>
       {canGoBack ? (
@@ -576,7 +627,7 @@ function RestPanel({
     <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
       <div className="mx-auto max-w-xl">
         <div className="flex items-center justify-between text-sm text-muted">
-          <PlayModeNav sessionId={sessionId} canGoBack={canGoBack} onBack={onBack} />
+          <PlayModeNav sessionId={sessionId} planIndex={planIndex} canGoBack={canGoBack} onBack={onBack} />
           <div>rest</div>
           <div />
         </div>
@@ -593,6 +644,192 @@ function RestPanel({
         <button type="button" onClick={completeAndClear} className="mt-10 text-lg text-text">
           [ skip ]
         </button>
+      </div>
+    </main>
+  );
+}
+
+function TimedExercisePanel({
+  step,
+  sessionId,
+  planIndex,
+  restoreTimers,
+  nextTitle,
+  onComplete,
+  canGoBack,
+  onBack
+}: {
+  step: ExerciseStep;
+  sessionId: string;
+  planIndex: number;
+  restoreTimers: boolean;
+  nextTitle: string | null;
+  onComplete: () => void;
+  canGoBack: boolean;
+  onBack: () => void;
+}): JSX.Element {
+  if (step.exercise.prescription.mode !== 'time') {
+    throw new Error('TimedExercisePanel requires time prescription');
+  }
+
+  const durationSeconds = step.exercise.prescription.seconds;
+  const storageKey = playTimerKey(sessionId, planIndex, step.step_id);
+  const { prescription, load } = exercisePrescriptionLine(step.exercise);
+
+  const [remaining, setRemaining] = useState(() => Math.max(0, durationSeconds));
+  const [started, setStarted] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const finishedRef = useRef(false);
+
+  const clearTimerStorage = useCallback(() => {
+    try {
+      sessionStorage.removeItem(storageKey);
+    } catch {
+      /* ignore */
+    }
+  }, [storageKey]);
+
+  const completeAndClear = useCallback(() => {
+    clearTimerStorage();
+    onComplete();
+  }, [clearTimerStorage, onComplete]);
+
+  const timeHydratedKeyRef = useRef<string | null>(null);
+  const timePersistReadyRef = useRef(!restoreTimers);
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') {
+      timePersistReadyRef.current = true;
+      return;
+    }
+    if (!restoreTimers) {
+      timePersistReadyRef.current = true;
+      return;
+    }
+    if (timeHydratedKeyRef.current === storageKey) {
+      timePersistReadyRef.current = true;
+      return;
+    }
+    timeHydratedKeyRef.current = storageKey;
+    const raw = sessionStorage.getItem(storageKey);
+    if (!raw) {
+      timePersistReadyRef.current = true;
+      return;
+    }
+    const snap = parseExerciseTimeSnapshot(raw, step);
+    if (snap) {
+      queueMicrotask(() => {
+        setRemaining(snap.remaining);
+        setStarted(snap.started);
+        setPaused(snap.paused);
+        finishedRef.current = false;
+        timePersistReadyRef.current = true;
+      });
+      return;
+    }
+    timePersistReadyRef.current = true;
+  }, [restoreTimers, storageKey, step]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (restoreTimers && !timePersistReadyRef.current) {
+      return;
+    }
+    const snap: ExerciseTimeTimerSnapshot = {
+      v: EXERCISE_TIME_SNAPSHOT_V,
+      durationSeconds,
+      remaining,
+      started,
+      paused
+    };
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(snap));
+    } catch {
+      /* ignore */
+    }
+  }, [restoreTimers, storageKey, durationSeconds, remaining, started, paused]);
+
+  useEffect(() => {
+    if (remaining > 0 || !started || paused) {
+      return;
+    }
+    if (restoreTimers && !timePersistReadyRef.current) {
+      return;
+    }
+    if (!finishedRef.current) {
+      finishedRef.current = true;
+      queueMicrotask(() => {
+        completeAndClear();
+      });
+    }
+  }, [remaining, started, paused, restoreTimers, completeAndClear]);
+
+  useEffect(() => {
+    if (remaining <= 0 || !started || paused) {
+      return;
+    }
+    if (restoreTimers && !timePersistReadyRef.current) {
+      return;
+    }
+    const t = window.setTimeout(() => {
+      setRemaining((r) => Math.max(0, r - 1));
+    }, 1000);
+    return () => window.clearTimeout(t);
+  }, [remaining, started, paused, restoreTimers]);
+
+  return (
+    <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
+      <div className="mx-auto max-w-xl">
+        <div className="flex items-center justify-between text-sm text-muted">
+          <PlayModeNav sessionId={sessionId} planIndex={planIndex} canGoBack={canGoBack} onBack={onBack} />
+          <div>{step.stage_title?.toUpperCase()} — {step.section_title?.toUpperCase()}</div>
+          <div>
+            {step.round_index && step.round_total ? `round ${step.round_index} / ${step.round_total}` : ''}
+            {step.set_index && step.set_total ? `set ${step.set_index} / ${step.set_total}` : ''}
+          </div>
+        </div>
+
+        <div className="mt-12">
+          <h1 className="text-display">{step.exercise.title}</h1>
+          <Link
+            href={`/edit/${sessionId}/${step.exercise.exercise_id}?returnStep=${planIndex}`}
+            className="mt-4 inline-block text-title text-muted hover:text-adjust transition-colors"
+          >
+            {prescription}
+            {load}
+          </Link>
+          <div className="mt-3 text-sm text-adjust">tap to adjust</div>
+        </div>
+
+        <div className="mt-10 text-center text-6xl font-semibold tabular-nums tracking-tight">
+          {formatRestCountdown(remaining)}
+        </div>
+        {remaining <= 0 && started ? (
+          <div className="mt-3 text-center text-sm text-adjust">time up</div>
+        ) : null}
+
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          {!started ? (
+            <button type="button" onClick={() => setStarted(true)} className="text-lg text-text">
+              [ start ]
+            </button>
+          ) : (
+            <button type="button" onClick={() => setPaused((p) => !p)} className="text-lg text-text">
+              {paused ? '[ resume ]' : '[ pause ]'}
+            </button>
+          )}
+        </div>
+
+        <button type="button" onClick={() => completeAndClear()} className="mt-12 text-2xl text-text">
+          [ complete ]
+        </button>
+
+        <div className="mt-16 border-t border-line pt-6">
+          <div className="text-sm uppercase tracking-wide-ui text-next">next</div>
+          <div className="mt-3 text-2xl">{nextTitle ?? 'Session complete'}</div>
+        </div>
       </div>
     </main>
   );
@@ -636,6 +873,13 @@ export function PlayScreen({
   const goBack = useCallback(() => {
     setIndex((i) => Math.max(0, i - 1));
   }, []);
+
+  useEffect(() => {
+    if (plan.steps.length === 0 || index < plan.steps.length) {
+      return;
+    }
+    clearPausedSession(plan.session_id);
+  }, [plan.session_id, plan.steps.length, index]);
 
   if (!playStorageReady) {
     return <div className="min-h-screen bg-bg" aria-busy="true" />;
@@ -700,11 +944,26 @@ export function PlayScreen({
     throw new Error(`Unexpected playback step type: ${step.type}`);
   }
 
-  const prescription = step.exercise.prescription.mode === 'reps'
-    ? `${step.exercise.prescription.reps} reps`
-    : step.exercise.prescription.mode === 'rep_range'
-      ? `${step.exercise.prescription.min_reps}-${step.exercise.prescription.max_reps} reps`
-      : `${step.exercise.prescription.seconds}s`;
+  if (step.exercise.prescription.mode === 'time') {
+    return (
+      <TimedExercisePanel
+        key={`${index}-${step.step_id}-time-${step.exercise.prescription.seconds}`}
+        step={step}
+        sessionId={plan.session_id}
+        planIndex={index}
+        restoreTimers={restoreTimers}
+        nextTitle={nextTitle}
+        onComplete={advancePlanStep}
+        canGoBack={index > 0}
+        onBack={goBack}
+      />
+    );
+  }
+
+  const prescription =
+    step.exercise.prescription.mode === 'reps'
+      ? `${step.exercise.prescription.reps} reps`
+      : `${step.exercise.prescription.min_reps}-${step.exercise.prescription.max_reps} reps`;
 
   const load = 'load' in step.exercise.equipment && step.exercise.equipment.load
     ? ` @ ${step.exercise.equipment.load.value} ${step.exercise.equipment.load.unit}`
@@ -714,7 +973,7 @@ export function PlayScreen({
     <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
       <div className="mx-auto max-w-xl">
         <div className="flex items-center justify-between text-sm text-muted">
-          <PlayModeNav sessionId={plan.session_id} canGoBack={index > 0} onBack={goBack} />
+          <PlayModeNav sessionId={plan.session_id} planIndex={index} canGoBack={index > 0} onBack={goBack} />
           <div>{step.stage_title?.toUpperCase()} — {step.section_title?.toUpperCase()}</div>
           <div>
             {step.round_index && step.round_total ? `round ${step.round_index} / ${step.round_total}` : ''}
