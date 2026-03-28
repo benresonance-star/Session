@@ -15,6 +15,9 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { CogIcon } from '@/components/ui/CogIcon';
+import { LcdRule } from '@/components/ui/LcdChrome';
+import { PageShell } from '@/components/ui/PageShell';
+import { SkinMenuSection } from '@/components/ui/SkinMenuSection';
 import { safeServiceErrorMessage } from '@/lib/safe-service-error';
 import { parseImportedSession } from '@/lib/session-validation';
 import {
@@ -96,7 +99,7 @@ function SortableSessionRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-start gap-3 border-b border-line pb-6 ${isDragging ? 'z-10 opacity-60' : ''}`}
+      className={`skin-rule flex items-start gap-3 border-b pb-6 ${isDragging ? 'z-10 opacity-60' : ''}`}
     >
       <button
         type="button"
@@ -109,7 +112,7 @@ function SortableSessionRow({
       </button>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <Link href={`/session/${session.session_id}`} className="min-w-0 text-xl font-medium text-text hover:text-next">
+          <Link href={`/session/${session.session_id}`} className="skin-display min-w-0 text-2xl text-text hover:text-next">
             {session.title}
           </Link>
           <SessionPauseControls
@@ -119,7 +122,7 @@ function SortableSessionRow({
             onCancelPause={onCancelPause}
           />
         </div>
-        <Link href={`/session/${session.session_id}`} className="mt-2 block text-sm text-muted hover:text-text/80">
+        <Link href={`/session/${session.session_id}`} className="mt-2 block text-lg text-muted hover:text-text/80">
           {session.duration_minutes != null ? `${session.duration_minutes} min` : '—'}
           {(session.tags ?? []).length ? ` · ${(session.tags ?? []).join(' · ')}` : ''}
         </Link>
@@ -403,7 +406,7 @@ export function SessionList({
   }
 
   return (
-    <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
+    <PageShell width="max-w-3xl">
       <input
         ref={importInputRef}
         type="file"
@@ -413,12 +416,12 @@ export function SessionList({
       />
       <div className="mx-auto max-w-xl">
         <div className="mb-10 flex items-center justify-between">
-          <h1 className="text-3xl font-semibold tracking-tight">sessions</h1>
+          <h1 className="skin-display text-display">sessions</h1>
           <div className="relative" ref={settingsMenuRef}>
             <button
               type="button"
               disabled={importing || pasteSubmitting}
-              className="inline-flex items-center justify-center rounded-md border border-border p-2 text-muted transition-colors hover:border-text/30 hover:text-text disabled:pointer-events-none disabled:opacity-40"
+              className="skin-control inline-flex items-center justify-center rounded-[var(--radius-control)] border border-border p-2 text-muted transition-colors hover:border-text/30 hover:text-text disabled:pointer-events-none disabled:opacity-40"
               aria-expanded={settingsMenuOpen}
               aria-haspopup="menu"
               aria-label="Session list settings"
@@ -429,12 +432,12 @@ export function SessionList({
             {settingsMenuOpen ? (
               <div
                 role="menu"
-                className="absolute right-0 z-40 mt-1 min-w-[12rem] rounded-md border border-line bg-panel py-1 text-sm shadow-none"
+                className="skin-panel-solid absolute right-0 z-40 mt-1 min-w-[16rem] rounded-[var(--radius-panel)] border border-line bg-[var(--panel-solid-bg)] py-1 text-sm shadow-none"
               >
                 <button
                   type="button"
                   role="menuitem"
-                  className="flex w-full px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text"
+                  className="skin-control flex w-full rounded-[var(--radius-control)] px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text"
                   onClick={() => {
                     setSettingsMenuOpen(false);
                     router.push('/builder/new');
@@ -446,7 +449,7 @@ export function SessionList({
                   type="button"
                   role="menuitem"
                   disabled={importing}
-                  className="flex w-full px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text disabled:pointer-events-none disabled:opacity-40"
+                  className="skin-control flex w-full rounded-[var(--radius-control)] px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text disabled:pointer-events-none disabled:opacity-40"
                   onClick={() => {
                     setSettingsMenuOpen(false);
                     importInputRef.current?.click();
@@ -458,7 +461,7 @@ export function SessionList({
                   type="button"
                   role="menuitem"
                   disabled={importing || pasteSubmitting}
-                  className="flex w-full px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text disabled:pointer-events-none disabled:opacity-40"
+                  className="skin-control flex w-full rounded-[var(--radius-control)] px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text disabled:pointer-events-none disabled:opacity-40"
                   onClick={() => {
                     setSettingsMenuOpen(false);
                     setPasteText('');
@@ -471,7 +474,7 @@ export function SessionList({
                 <button
                   type="button"
                   role="menuitem"
-                  className="flex w-full px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text"
+                  className="skin-control flex w-full rounded-[var(--radius-control)] px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text"
                   onClick={() => {
                     setSettingsMenuOpen(false);
                     void copySessionSchema();
@@ -479,6 +482,12 @@ export function SessionList({
                 >
                   copy JSON schema
                 </button>
+                <SkinMenuSection
+                  disabled={importing || pasteSubmitting}
+                  onSelect={() => {
+                    setSettingsMenuOpen(false);
+                  }}
+                />
               </div>
             ) : null}
           </div>
@@ -495,9 +504,10 @@ export function SessionList({
           </p>
         ) : null}
 
+        <LcdRule className="mb-8" />
         <div className="space-y-8">
           {items.length === 0 ? (
-            <p className="text-sm text-muted">
+            <p className="text-xl text-muted">
               No sessions yet. Create one in the builder and save to Supabase, or configure env to use the bundled sample.
             </p>
           ) : persistOrder ? (
@@ -516,9 +526,9 @@ export function SessionList({
             </DndContext>
           ) : (
             items.map((session) => (
-              <div key={session.session_id} className="border-b border-line pb-6">
+              <div key={session.session_id} className="skin-rule border-b pb-6">
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <Link href={`/session/${session.session_id}`} className="text-xl font-medium text-text hover:text-next">
+                  <Link href={`/session/${session.session_id}`} className="skin-display text-2xl text-text hover:text-next">
                     {session.title}
                   </Link>
                   <SessionPauseControls
@@ -528,7 +538,7 @@ export function SessionList({
                     onCancelPause={handleCancelPause}
                   />
                 </div>
-                <Link href={`/session/${session.session_id}`} className="mt-2 block text-sm text-muted hover:text-text/80">
+                <Link href={`/session/${session.session_id}`} className="mt-2 block text-lg text-muted hover:text-text/80">
                   {session.duration_minutes != null ? `${session.duration_minutes} min` : '—'}
                   {(session.tags ?? []).length ? ` · ${(session.tags ?? []).join(' · ')}` : ''}
                 </Link>
@@ -540,7 +550,7 @@ export function SessionList({
 
       {pasteModalOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8"
+          className="skin-overlay fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-bg)] px-4 py-8"
           role="presentation"
           onClick={() => {
             if (!pasteSubmitting) {
@@ -552,10 +562,10 @@ export function SessionList({
             role="dialog"
             aria-modal="true"
             aria-labelledby="paste-json-title"
-            className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-line bg-panel shadow-none"
+            className="skin-panel-solid flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[var(--radius-panel)] border border-line bg-[var(--panel-solid-bg)] shadow-none"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="paste-json-title" className="border-b border-line px-6 py-4 text-lg font-semibold text-text">
+            <h2 id="paste-json-title" className="skin-label border-b border-line px-6 py-4 text-sm text-text">
               Paste session JSON
             </h2>
             <p className="px-6 pt-3 text-sm text-muted">
@@ -574,7 +584,7 @@ export function SessionList({
                 }}
                 spellCheck={false}
                 placeholder="{ … }"
-                className="min-h-[14rem] w-full resize-y rounded-md border border-border bg-bg px-3 py-2 font-mono text-xs leading-relaxed text-text outline-none transition-colors focus:border-accent"
+                className="skin-control min-h-[14rem] w-full resize-y rounded-[var(--radius-control)] border border-border bg-[var(--input-bg)] px-3 py-2 font-mono text-xs leading-relaxed text-text outline-none transition-colors focus:border-accent"
               />
             </div>
             {pasteErrors.length ? (
@@ -600,6 +610,6 @@ export function SessionList({
           </div>
         </div>
       ) : null}
-    </main>
+    </PageShell>
   );
 }

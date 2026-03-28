@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { LcdLabel, LcdRule, LcdTransportButton } from '@/components/ui/LcdChrome';
+import { PageShell } from '@/components/ui/PageShell';
 import { applyExerciseAdjustments, type ExerciseAdjustPatch } from '@/lib/session-apply';
 import { safeServiceErrorMessage } from '@/lib/safe-service-error';
 import { validateSessionDefinition } from '@/lib/session-validation';
@@ -114,39 +116,39 @@ export function AdjustScreen({
   }
 
   return (
-    <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
-      <div className="mx-auto max-w-xl">
-        <Link href={playHref} className="text-sm text-muted hover:text-text">
+    <PageShell width="max-w-3xl">
+        <Link href={playHref} className="skin-label text-[11px] text-muted hover:text-text">
           ← back
         </Link>
 
-        <h1 className="mt-10 text-display">{exercise.title}</h1>
+        <h1 className="skin-display mt-10 text-display">{exercise.title}</h1>
 
         {error ? <p className="mt-6 text-sm text-red-500/90">{error}</p> : null}
 
+        <LcdRule className="mt-8" />
         <div className="mt-12 space-y-12">
           {exercise.prescription.mode !== 'time' ? (
             <div>
-              <div className="text-sm uppercase tracking-wide-ui text-adjust">reps</div>
-              <div className="mt-4 flex items-center gap-8 text-5xl">
-                <button type="button" onClick={() => setReps((v) => Math.max(1, v - 1))}>
+              <LcdLabel className="text-adjust">reps</LcdLabel>
+              <div className="skin-digit mt-4 flex items-center gap-8 text-6xl leading-none">
+                <button type="button" onClick={() => setReps((v) => Math.max(1, v - 1))} className="skin-display">
                   −
                 </button>
                 <div>{reps}</div>
-                <button type="button" onClick={() => setReps((v) => v + 1)}>
+                <button type="button" onClick={() => setReps((v) => v + 1)} className="skin-display">
                   +
                 </button>
               </div>
             </div>
           ) : (
             <div>
-              <div className="text-sm uppercase tracking-wide-ui text-adjust">time</div>
-              <div className="mt-4 flex items-center gap-8 text-5xl">
-                <button type="button" onClick={() => setSeconds((v) => Math.max(5, v - 5))}>
+              <LcdLabel className="text-adjust">time</LcdLabel>
+              <div className="skin-digit mt-4 flex items-center gap-8 text-6xl leading-none">
+                <button type="button" onClick={() => setSeconds((v) => Math.max(5, v - 5))} className="skin-display">
                   −
                 </button>
                 <div>{seconds}s</div>
-                <button type="button" onClick={() => setSeconds((v) => v + 5)}>
+                <button type="button" onClick={() => setSeconds((v) => v + 5)} className="skin-display">
                   +
                 </button>
               </div>
@@ -155,15 +157,15 @@ export function AdjustScreen({
 
           {'load' in exercise.equipment && exercise.equipment.load ? (
             <div>
-              <div className="text-sm uppercase tracking-wide-ui text-adjust">weight</div>
-              <div className="mt-4 flex items-center gap-8 text-5xl">
-                <button type="button" onClick={() => setLoad((v) => Math.max(1, v - 1))}>
+              <LcdLabel className="text-adjust">weight</LcdLabel>
+              <div className="skin-digit mt-4 flex items-center gap-8 text-6xl leading-none">
+                <button type="button" onClick={() => setLoad((v) => Math.max(1, v - 1))} className="skin-display">
                   −
                 </button>
                 <div>
                   {load} {unit}
                 </div>
-                <button type="button" onClick={() => setLoad((v) => v + 1)}>
+                <button type="button" onClick={() => setLoad((v) => v + 1)} className="skin-display">
                   +
                 </button>
               </div>
@@ -171,15 +173,12 @@ export function AdjustScreen({
           ) : null}
         </div>
 
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => void handleDone()}
-          className="mt-16 block text-2xl text-text disabled:opacity-50"
-        >
-          {saving ? '[ saving… ]' : '[ done ]'}
-        </button>
-      </div>
-    </main>
+        <LcdRule className="mt-10" />
+        <div className="mt-8 flex justify-center">
+          <LcdTransportButton type="button" disabled={saving} onClick={() => void handleDone()}>
+            {saving ? 'saving' : 'done'}
+          </LcdTransportButton>
+        </div>
+    </PageShell>
   );
 }

@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { LcdLabel, LcdRule, LcdTransportLink } from '@/components/ui/LcdChrome';
+import { PageShell } from '@/components/ui/PageShell';
 import type { Block, SessionDefinition } from '@/types/session';
 
 function formatRounds(n: number): string {
@@ -36,29 +38,34 @@ function blockStructureHint(block: Block): string | null {
 
 export function SessionDetail({ session }: { session: SessionDefinition }): JSX.Element {
   return (
-    <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
-      <div className="mx-auto max-w-2xl">
-        <Link href="/home" className="text-sm text-muted hover:text-text">← sessions</Link>
+    <PageShell width="max-w-3xl">
+        <Link href="/home" className="skin-label text-[11px] text-muted hover:text-text">← sessions</Link>
 
-        <h1 className="mt-6 text-display">{session.title}</h1>
-        <div className="mt-3 text-sm text-muted">{session.duration_minutes} min · {(session.tags ?? []).join(' · ')}</div>
+        <h1 className="skin-display mt-6 text-display">{session.title}</h1>
+        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xl text-muted">
+          <span>{session.duration_minutes} min</span>
+          {(session.tags ?? []).map((tag) => (
+            <span key={tag}>{tag}</span>
+          ))}
+        </div>
 
         {session.description?.trim() ? (
-          <p className="mt-8 max-w-prose whitespace-pre-wrap text-base leading-relaxed text-text">{session.description.trim()}</p>
+          <p className="mt-8 max-w-prose whitespace-pre-wrap text-2xl leading-relaxed text-text">{session.description.trim()}</p>
         ) : null}
 
-        <div className="mt-12 space-y-10">
+        <LcdRule className="mt-10" />
+        <div className="mt-10 space-y-10">
           {session.stages.map((stage) => (
             <section key={stage.stage_id}>
-              <h2 className="text-sm uppercase tracking-wide-ui text-muted">{stage.title}</h2>
+              <LcdLabel>{stage.title}</LcdLabel>
               <div className="mt-4 space-y-6">
                 {(stage.sections ?? []).map((section) => (
                   <div key={section.section_id} className="space-y-3">
-                    <div className="text-base text-text">{section.title}</div>
+                    <div className="skin-display text-2xl text-text">{section.title}</div>
                     {section.blocks.map((block) => {
                       const structureHint = blockStructureHint(block);
                       return (
-                      <div key={block.block_id} className="space-y-2 pl-4 border-l border-line">
+                      <div key={block.block_id} className="skin-rule-y space-y-2 border-l pl-4">
                         <div className="text-sm">
                           <span className="text-muted">{block.title}</span>
                           {structureHint ? (
@@ -86,12 +93,14 @@ export function SessionDetail({ session }: { session: SessionDefinition }): JSX.
           ))}
         </div>
 
-        <div className="mt-12 flex items-center gap-8">
-          <Link href={`/play/${session.session_id}`} className="text-xl text-text">[ start session ]</Link>
-          <Link href={`/builder/${session.session_id}`} className="text-base text-adjust">edit</Link>
-          <button className="text-base text-muted">duplicate</button>
+        <LcdRule className="mt-10" />
+        <div className="mt-8 flex flex-wrap items-center gap-4">
+          <LcdTransportLink href={`/play/${session.session_id}`}>start</LcdTransportLink>
+          <Link href={`/builder/${session.session_id}`} className="skin-label text-[11px] text-adjust">
+            edit
+          </Link>
+          <button className="skin-label text-[11px] text-muted">duplicate</button>
         </div>
-      </div>
-    </main>
+    </PageShell>
   );
 }

@@ -249,7 +249,7 @@ export function createEmptyStage(title = 'Main', stageId: StageId = 'main'): Sta
 
 export function createEmptySession(seed = 'Untitled Session'): SessionDefinition {
   return {
-    schema_version: '1.2',
+    schema_version: '1.1',
     session_id: createId(seed),
     title: seed,
     tags: ['draft'],

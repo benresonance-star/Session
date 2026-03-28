@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { LcdLabel, LcdRule, LcdTransportButton, LcdTransportLink } from '@/components/ui/LcdChrome';
 import { clearPausedSession } from '@/lib/session-pause-storage';
 import type { CircuitTimePlayStep, ExerciseStep, PlaybackPlan, RestStep } from '@/types/playback';
 import type { Exercise } from '@/types/session';
@@ -210,7 +211,54 @@ function exerciseCoachBlock(exercise: Exercise): JSX.Element | null {
   if (!c) {
     return null;
   }
-  return <p className="mt-4 max-w-prose whitespace-pre-wrap text-base leading-relaxed text-muted">{c}</p>;
+  return <p className="mt-4 max-w-prose whitespace-pre-wrap text-xl leading-relaxed text-muted">{c}</p>;
+}
+
+function formatTargetMetric(exercise: Exercise): string {
+  if (exercise.prescription.mode === 'reps') {
+    return String(exercise.prescription.reps);
+  }
+  if (exercise.prescription.mode === 'rep_range') {
+    return `${exercise.prescription.min_reps}-${exercise.prescription.max_reps}`;
+  }
+  return `${exercise.prescription.seconds}s`;
+}
+
+function formatSetMetric(setIndex?: number, setTotal?: number): string {
+  if (setIndex && setTotal) {
+    return `${setIndex}/${setTotal}`;
+  }
+  return '--';
+}
+
+function LcdMetric({
+  label,
+  value
+}: {
+  label: string;
+  value: string;
+}): JSX.Element {
+  return (
+    <div className="min-w-0">
+      <LcdLabel>{label}</LcdLabel>
+      <div className="skin-digit mt-1 text-4xl leading-none text-text sm:text-5xl">{value}</div>
+    </div>
+  );
+}
+
+function LcdInfoRow({
+  label,
+  value
+}: {
+  label: string;
+  value: string;
+}): JSX.Element {
+  return (
+    <div className="flex items-start gap-4 text-xl sm:text-2xl">
+      <div className="skin-label w-20 shrink-0 text-[11px] text-muted sm:w-24">{label}</div>
+      <div className="skin-display min-w-0 flex-1 text-text">{value}</div>
+    </div>
+  );
 }
 
 function getNextExerciseTitle(steps: PlaybackPlan['steps'], startIndex: number): string | null {
@@ -435,65 +483,86 @@ function CircuitTimePanel({
   const { prescription, load } = exercisePrescriptionLine(currentExercise);
 
   return (
-    <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
-      <div className="mx-auto max-w-xl">
-        <div className="flex items-start justify-between gap-4 text-sm text-muted">
+    <main className="skin-page min-h-screen px-6 py-10 sm:px-10">
+      <div className="skin-screen mx-auto max-w-3xl">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <PlayModeNav sessionId={sessionId} planIndex={planIndex} canGoBack={canGoBack} onBack={onBack} />
-          <div className="text-right">
-            <div className="text-xs uppercase tracking-wide-ui">circuit time</div>
-            <div className="mt-1 text-3xl font-semibold tabular-nums text-text">{formatBlockCountdown(blockRemaining)}</div>
-            {blockTimeUp ? <div className="mt-1 text-xs text-adjust">time up — finish this step</div> : null}
-          </div>
+          <LcdLabel className="text-right">Circuit time</LcdLabel>
         </div>
+        <div className="skin-digit mt-8 text-center text-[5.5rem] leading-none text-text sm:text-[7rem]">
+          {formatBlockCountdown(blockRemaining)}
+        </div>
+        {blockTimeUp ? (
+          <div className="mt-3 text-center text-lg text-adjust">Time up. Finish this step.</div>
+        ) : null}
 
-        <div className="mt-6 flex flex-wrap items-center gap-3">
+        <LcdRule className="mt-8" />
+        <div className="mt-5 flex flex-wrap justify-center gap-3">
           {!started ? (
-            <button type="button" onClick={() => setStarted(true)} className="text-lg text-text">
-              [ start ]
-            </button>
+            <LcdTransportButton type="button" onClick={() => setStarted(true)}>
+              start
+            </LcdTransportButton>
           ) : (
-            <button type="button" onClick={() => setPaused((p) => !p)} className="text-lg text-text">
-              {paused ? '[ resume ]' : '[ pause ]'}
-            </button>
+            <LcdTransportButton type="button" onClick={() => setPaused((p) => !p)}>
+              {paused ? 'resume' : 'pause'}
+            </LcdTransportButton>
           )}
         </div>
 
         {phase === 'rest' ? (
           <>
-            <div className="mt-16 text-center text-sm uppercase tracking-wide-ui text-muted">rest</div>
-            <div className="mt-4 text-center text-6xl font-semibold tabular-nums tracking-tight">
+            <LcdRule className="mt-8" />
+            <div className="mt-8 text-center">
+              <LcdLabel>Rest</LcdLabel>
+            </div>
+            <div className="skin-digit mt-5 text-center text-[4.75rem] leading-none text-text sm:text-[6rem]">
               {formatRestCountdown(restRemaining)}
             </div>
-            <button type="button" onClick={handleSkipRest} className="mt-10 text-lg text-text">
-              [ skip ]
-            </button>
+            <div className="mt-8 flex justify-center">
+              <LcdTransportButton type="button" onClick={handleSkipRest}>
+                skip
+              </LcdTransportButton>
+            </div>
           </>
         ) : (
           <>
-            <div className="mt-12 text-center text-xs uppercase tracking-wide-ui text-muted">
-              {step.stage_title?.toUpperCase()} — {step.section_title?.toUpperCase()}
+            <LcdRule className="mt-8" />
+            <div className="mt-8 text-center">
+              <LcdLabel>
+                {step.stage_title?.toUpperCase()} {step.section_title ? `· ${step.section_title.toUpperCase()}` : ''}
+              </LcdLabel>
             </div>
-            <div className="mt-6">
-              <h1 className="text-display">{currentExercise.title}</h1>
+            <div className="mt-6 text-center">
+              <h1 className="skin-display text-display leading-tight">{currentExercise.title}</h1>
               <Link
                 href={`/edit/${sessionId}/${currentExercise.exercise_id}?returnStep=${planIndex}`}
-                className="mt-4 inline-block text-title text-muted hover:text-adjust transition-colors"
+                className="skin-display mt-5 inline-block text-title text-muted transition-colors hover:text-adjust"
               >
                 {prescription}
                 {load}
               </Link>
-              <div className="mt-3 text-sm text-adjust">tap to adjust</div>
+              <div className="mt-3 text-lg text-adjust">tap to adjust</div>
               {exerciseCoachBlock(currentExercise)}
             </div>
-            <button type="button" onClick={handleExerciseComplete} className="mt-16 text-2xl text-text">
-              [ complete ]
-            </button>
+            <LcdRule className="mt-8" />
+            <div className="mt-6 grid gap-5 sm:grid-cols-2">
+              <LcdMetric label={currentExercise.prescription.mode === 'time' ? 'Target' : 'Reps'} value={formatTargetMetric(currentExercise)} />
+              <LcdMetric label="Cycle" value={`${exerciseIndex + 1}/${Math.max(exercises.length, 1)}`} />
+            </div>
+            <div className="mt-8 flex justify-center">
+              <LcdTransportButton type="button" onClick={handleExerciseComplete}>
+                complete
+              </LcdTransportButton>
+            </div>
           </>
         )}
 
-        <div className="mt-16 border-t border-line pt-6">
-          <div className="text-sm uppercase tracking-wide-ui text-next">next</div>
-          <div className="mt-3 text-2xl">{nextCycleTitle ?? 'Session complete'}</div>
+        <LcdRule className="mt-8" />
+        <div className="mt-6">
+          <LcdInfoRow label="Phase" value={phase === 'rest' ? 'REST' : 'WORK'} />
+          <div className="mt-4">
+            <LcdInfoRow label="Next" value={(nextCycleTitle ?? 'SESSION COMPLETE').toUpperCase()} />
+          </div>
         </div>
       </div>
     </main>
@@ -512,17 +581,14 @@ function PlayModeNav({
   onBack: () => void;
 }): JSX.Element {
   return (
-    <div className="flex flex-col items-start gap-1">
-      <Link
-        href={`/exit?sessionId=${encodeURIComponent(sessionId)}&at=${planIndex}`}
-        className="hover:text-text"
-      >
-        ← exit
-      </Link>
+    <div className="flex flex-wrap items-center gap-2">
+      <LcdTransportLink href={`/exit?sessionId=${encodeURIComponent(sessionId)}&at=${planIndex}`}>
+        exit
+      </LcdTransportLink>
       {canGoBack ? (
-        <button type="button" onClick={onBack} className="text-left hover:text-text">
-          ← back
-        </button>
+        <LcdTransportButton type="button" onClick={onBack}>
+          back
+        </LcdTransportButton>
       ) : null}
     </div>
   );
@@ -633,26 +699,30 @@ function RestPanel({
   }, [remaining, completeAndClear]);
 
   return (
-    <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
-      <div className="mx-auto max-w-xl">
-        <div className="flex items-center justify-between text-sm text-muted">
+    <main className="skin-page min-h-screen px-6 py-10 sm:px-10">
+      <div className="skin-screen mx-auto max-w-3xl">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <PlayModeNav sessionId={sessionId} planIndex={planIndex} canGoBack={canGoBack} onBack={onBack} />
-          <div>rest</div>
-          <div />
+          <LcdLabel>Rest</LcdLabel>
         </div>
 
-        <div className="mt-24 text-center text-6xl font-semibold tracking-tight">
+        <div className="skin-digit mt-10 text-center text-[5.5rem] leading-none text-text sm:text-[7rem]">
           {formatRestCountdown(remaining)}
         </div>
 
-        <div className="mt-24 border-t border-line pt-6">
-          <div className="text-sm uppercase tracking-wide-ui text-next">next</div>
-          <div className="mt-3 text-2xl">{nextTitle ?? 'Session complete'}</div>
+        <LcdRule className="mt-8" />
+        <div className="mt-6">
+          <LcdInfoRow label="Phase" value="REST" />
+          <div className="mt-4">
+            <LcdInfoRow label="Next" value={(nextTitle ?? 'SESSION COMPLETE').toUpperCase()} />
+          </div>
         </div>
 
-        <button type="button" onClick={completeAndClear} className="mt-10 text-lg text-text">
-          [ skip ]
-        </button>
+        <div className="mt-8 flex justify-center">
+          <LcdTransportButton type="button" onClick={completeAndClear}>
+            skip
+          </LcdTransportButton>
+        </div>
       </div>
     </main>
   );
@@ -789,56 +859,62 @@ function TimedExercisePanel({
   }, [remaining, started, paused, restoreTimers]);
 
   return (
-    <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
-      <div className="mx-auto max-w-xl">
-        <div className="flex items-center justify-between text-sm text-muted">
+    <main className="skin-page min-h-screen px-6 py-10 sm:px-10">
+      <div className="skin-screen mx-auto max-w-3xl">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <PlayModeNav sessionId={sessionId} planIndex={planIndex} canGoBack={canGoBack} onBack={onBack} />
-          <div>{step.stage_title?.toUpperCase()} — {step.section_title?.toUpperCase()}</div>
-          <div>
-            {step.round_index && step.round_total ? `round ${step.round_index} / ${step.round_total}` : ''}
-            {step.set_index && step.set_total ? `set ${step.set_index} / ${step.set_total}` : ''}
-          </div>
+          <LcdLabel>
+            {step.stage_title?.toUpperCase()} {step.section_title ? `· ${step.section_title.toUpperCase()}` : ''}
+          </LcdLabel>
         </div>
 
-        <div className="mt-12">
-          <h1 className="text-display">{step.exercise.title}</h1>
+        <div className="mt-8 text-center">
+          <h1 className="skin-display text-display leading-tight">{step.exercise.title}</h1>
           <Link
             href={`/edit/${sessionId}/${step.exercise.exercise_id}?returnStep=${planIndex}`}
-            className="mt-4 inline-block text-title text-muted hover:text-adjust transition-colors"
+            className="skin-display mt-5 inline-block text-title text-muted transition-colors hover:text-adjust"
           >
             {prescription}
             {load}
           </Link>
-          <div className="mt-3 text-sm text-adjust">tap to adjust</div>
+          <div className="mt-3 text-lg text-adjust">tap to adjust</div>
           {exerciseCoachBlock(step.exercise)}
         </div>
 
-        <div className="mt-10 text-center text-6xl font-semibold tabular-nums tracking-tight">
+        <LcdRule className="mt-8" />
+        <div className="mt-6 grid gap-5 sm:grid-cols-2">
+          <LcdMetric label="Target" value={formatTargetMetric(step.exercise)} />
+          <LcdMetric label="Set" value={formatSetMetric(step.set_index, step.set_total)} />
+        </div>
+        <div className="skin-digit mt-8 text-center text-[5.5rem] leading-none text-text sm:text-[7rem]">
           {formatRestCountdown(remaining)}
         </div>
         {remaining <= 0 && started ? (
-          <div className="mt-3 text-center text-sm text-adjust">time up</div>
+          <div className="mt-3 text-center text-lg text-adjust">time up</div>
         ) : null}
 
-        <div className="mt-8 flex flex-wrap items-center gap-3">
+        <LcdRule className="mt-8" />
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           {!started ? (
-            <button type="button" onClick={() => setStarted(true)} className="text-lg text-text">
-              [ start ]
-            </button>
+            <LcdTransportButton type="button" onClick={() => setStarted(true)}>
+              start
+            </LcdTransportButton>
           ) : (
-            <button type="button" onClick={() => setPaused((p) => !p)} className="text-lg text-text">
-              {paused ? '[ resume ]' : '[ pause ]'}
-            </button>
+            <LcdTransportButton type="button" onClick={() => setPaused((p) => !p)}>
+              {paused ? 'resume' : 'pause'}
+            </LcdTransportButton>
           )}
+          <LcdTransportButton type="button" onClick={() => completeAndClear()}>
+            complete
+          </LcdTransportButton>
         </div>
 
-        <button type="button" onClick={() => completeAndClear()} className="mt-12 text-2xl text-text">
-          [ complete ]
-        </button>
-
-        <div className="mt-16 border-t border-line pt-6">
-          <div className="text-sm uppercase tracking-wide-ui text-next">next</div>
-          <div className="mt-3 text-2xl">{nextTitle ?? 'Session complete'}</div>
+        <LcdRule className="mt-8" />
+        <div className="mt-6">
+          <LcdInfoRow label="Phase" value={started && !paused ? 'WORK' : 'READY'} />
+          <div className="mt-4">
+            <LcdInfoRow label="Next" value={(nextTitle ?? 'SESSION COMPLETE').toUpperCase()} />
+          </div>
         </div>
       </div>
     </main>
@@ -892,7 +968,7 @@ export function PlayScreen({
   }, [plan.session_id, plan.steps.length, index]);
 
   if (!playStorageReady) {
-    return <div className="min-h-screen bg-bg" aria-busy="true" />;
+    return <div className="skin-page min-h-screen" aria-busy="true" />;
   }
 
   if (!step) {
@@ -900,20 +976,24 @@ export function PlayScreen({
     return (
       <Link
         href="/home"
-        className="flex min-h-screen w-full cursor-pointer flex-col items-center justify-center bg-bg px-6 py-10 text-center text-text"
+        className="skin-page flex min-h-screen w-full cursor-pointer items-center justify-center px-6 py-10 text-center text-text"
       >
-        {empty ? (
-          <>
-            <h1 className="text-display">Nothing to play</h1>
-            <p className="mt-6 text-title text-muted">Tap anywhere to return home</p>
-          </>
-        ) : (
-          <>
-            <h1 className="text-display">CONGRATULATIONS</h1>
-            <p className="mt-6 text-2xl font-medium tracking-tight text-text">Session completed</p>
-            <p className="mt-10 text-sm text-muted">Tap anywhere to continue</p>
-          </>
-        )}
+        <div className="skin-screen w-full max-w-3xl py-16">
+          {empty ? (
+            <>
+              <h1 className="skin-display text-display">Nothing to play</h1>
+              <LcdRule className="mt-8" />
+              <p className="mt-8 text-2xl text-muted">Tap anywhere to return home</p>
+            </>
+          ) : (
+            <>
+              <h1 className="skin-display text-display">Congratulations</h1>
+              <LcdRule className="mt-8" />
+              <p className="skin-digit mt-8 text-6xl leading-none text-text sm:text-7xl">clear</p>
+              <p className="mt-8 text-2xl text-muted">Tap anywhere to continue</p>
+            </>
+          )}
+        </div>
       </Link>
     );
   }
@@ -980,34 +1060,45 @@ export function PlayScreen({
     : '';
 
   return (
-    <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
-      <div className="mx-auto max-w-xl">
-        <div className="flex items-center justify-between text-sm text-muted">
+    <main className="skin-page min-h-screen px-6 py-10 sm:px-10">
+      <div className="skin-screen mx-auto max-w-3xl">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <PlayModeNav sessionId={plan.session_id} planIndex={index} canGoBack={index > 0} onBack={goBack} />
-          <div>{step.stage_title?.toUpperCase()} — {step.section_title?.toUpperCase()}</div>
-          <div>
-            {step.round_index && step.round_total ? `round ${step.round_index} / ${step.round_total}` : ''}
-            {step.set_index && step.set_total ? `set ${step.set_index} / ${step.set_total}` : ''}
-          </div>
+          <LcdLabel>
+            {step.stage_title?.toUpperCase()} {step.section_title ? `· ${step.section_title.toUpperCase()}` : ''}
+          </LcdLabel>
         </div>
 
-        <div className="mt-24">
-          <h1 className="text-display">{step.exercise.title}</h1>
+        <div className="mt-8 text-center">
+          <h1 className="skin-display text-display leading-tight">{step.exercise.title}</h1>
           <Link
             href={`/edit/${plan.session_id}/${step.exercise.exercise_id}?returnStep=${index}`}
-            className="mt-4 inline-block text-title text-muted hover:text-adjust transition-colors"
+            className="skin-display mt-5 inline-block text-title text-muted transition-colors hover:text-adjust"
           >
             {prescription}{load}
           </Link>
-          <div className="mt-3 text-sm text-adjust">tap to adjust</div>
+          <div className="mt-3 text-lg text-adjust">tap to adjust</div>
           {exerciseCoachBlock(step.exercise)}
         </div>
 
-        <button onClick={() => setIndex(index + 1)} className="mt-20 text-2xl text-text">[ complete ]</button>
+        <LcdRule className="mt-8" />
+        <div className="mt-6 grid gap-5 sm:grid-cols-2">
+          <LcdMetric label="Reps" value={formatTargetMetric(step.exercise)} />
+          <LcdMetric label="Set" value={formatSetMetric(step.set_index, step.set_total)} />
+        </div>
 
-        <div className="mt-24 border-t border-line pt-6">
-          <div className="text-sm uppercase tracking-wide-ui text-next">next</div>
-          <div className="mt-3 text-2xl">{nextTitle ?? 'Session complete'}</div>
+        <LcdRule className="mt-8" />
+        <div className="mt-6">
+          <LcdInfoRow label="Phase" value="WORK" />
+          <div className="mt-4">
+            <LcdInfoRow label="Next" value={(nextTitle ?? 'SESSION COMPLETE').toUpperCase()} />
+          </div>
+        </div>
+
+        <div className="mt-8 flex justify-center">
+          <LcdTransportButton type="button" onClick={() => setIndex(index + 1)}>
+            complete
+          </LcdTransportButton>
         </div>
       </div>
     </main>

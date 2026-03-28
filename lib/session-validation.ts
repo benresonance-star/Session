@@ -39,6 +39,36 @@ export function normalizeEmptyExerciseTitlesForPersistence(session: SessionDefin
   return next;
 }
 
+export function sessionHasCoach(session: SessionDefinition): boolean {
+  for (const stage of session.stages) {
+    for (const block of blocksForStage(stage)) {
+      if (block.block_type === 'superset') {
+        for (const pair of block.exercise_pairs) {
+          for (const ex of pair) {
+            if (ex.coach?.trim()) {
+              return true;
+            }
+          }
+        }
+      } else {
+        for (const ex of block.exercises) {
+          if (ex.coach?.trim()) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/** Normalize titles for schema, then emit `schema_version` 1.2 iff any exercise has `coach`; otherwise keep existing version. */
+export function prepareSessionForPersistence(session: SessionDefinition): SessionDefinition {
+  const next = normalizeEmptyExerciseTitlesForPersistence(session);
+  next.schema_version = sessionHasCoach(next) ? '1.2' : next.schema_version;
+  return next;
+}
+
 export interface SessionValidationResult {
   isValid: boolean;
   errors: string[];

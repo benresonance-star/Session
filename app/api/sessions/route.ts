@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { safeServiceErrorMessage } from '@/lib/safe-service-error';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
-import { validateSessionDefinition } from '@/lib/session-validation';
+import { prepareSessionForPersistence, validateSessionDefinition } from '@/lib/session-validation';
 import type { SessionDefinition } from '@/types/session';
 
 const TABLE = 'session_definitions';
@@ -25,7 +25,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
     return NextResponse.json({ errors: validation.errors }, { status: 400 });
   }
 
-  const session = body as SessionDefinition;
+  const session = prepareSessionForPersistence(body as SessionDefinition);
 
   const { data: existing } = await client.from(TABLE).select('sort_order').eq('session_id', session.session_id).maybeSingle();
 

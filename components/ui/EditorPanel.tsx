@@ -21,11 +21,13 @@ export function EditorPanel({
   onToggleCollapse?: () => void;
 }): JSX.Element {
   return (
-    <section className={`rounded-xl border border-border/80 bg-panel/50 p-4 sm:p-5 ${className}`.trim()}>
+    <section
+      className={`skin-panel rounded-[var(--radius-panel)] border border-border/80 bg-[var(--panel-bg)] p-4 sm:p-5 ${className}`.trim()}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <div className="text-base font-medium text-text">{title}</div>
-          {!collapsed && subtitle ? <div className="mt-1 text-sm text-muted">{subtitle}</div> : null}
+          <div className="skin-display text-lg text-text">{title}</div>
+          {!collapsed && subtitle ? <div className="mt-2 text-sm text-muted">{subtitle}</div> : null}
         </div>
         {(actions || collapsible) ? (
           <div className="flex flex-wrap gap-px">
@@ -35,7 +37,7 @@ export function EditorPanel({
                 onClick={onToggleCollapse}
                 aria-expanded={!collapsed}
                 aria-label={collapsed ? 'Expand section' : 'Collapse section'}
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-md p-0 text-muted transition-colors hover:text-text"
+                className="skin-control inline-flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-control)] p-0 text-muted transition-colors hover:text-text"
               >
                 {collapsed ? (
                   <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />

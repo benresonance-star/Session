@@ -14,6 +14,90 @@
   --color-accent: 131 170 255;
   --color-success: 125 199 158;
   --color-warning: 210 163 93;
+  --font-body: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: var(--font-body);
+  --radius-control: 0.375rem;
+  --radius-panel: 0.75rem;
+  --panel-bg: rgb(var(--color-panel) / 0.5);
+  --panel-solid-bg: rgb(var(--color-panel));
+  --input-bg: rgb(var(--color-panel));
+  --overlay-bg: rgb(0 0 0 / 0.6);
+  --display-spacing: -0.04em;
+  --display-transform: none;
+  --font-label: var(--font-body);
+  --font-digit: var(--font-display);
+  --screen-border-width: 1px;
+  --screen-padding: 0;
+  --screen-shadow: none;
+  --screen-bg: transparent;
+  --screen-outline: transparent;
+  --rule-thickness: 1px;
+  --rule-color: rgb(var(--color-line));
+  --control-shadow: none;
+  --pixel-grid-opacity: 0;
+  --pixel-grid-size: 4px;
+  --pixel-dot-opacity: 0;
+  --pixel-dot-size: 1px;
+  --pixel-glow: rgb(255 255 255 / 0);
+}
+
+html[data-skin="retro-lcd"] {
+  color-scheme: light;
+  --color-bg: 185 196 116;
+  --color-panel: 172 183 106;
+  --color-surface: 194 205 126;
+  --color-text: 23 31 16;
+  --color-muted: 61 73 39;
+  --color-line: 61 73 39;
+  --color-border: 41 52 23;
+  --color-accent: 33 94 145;
+  --color-success: 74 121 39;
+  --color-warning: 160 72 27;
+  --font-body: "VT323", "Arial Narrow", Arial, "Helvetica Neue", sans-serif;
+  --font-display: "Press Start 2P", "VT323", ui-monospace, monospace;
+  --font-label: "Press Start 2P", "VT323", ui-monospace, monospace;
+  --font-digit: "VT323", ui-monospace, monospace;
+  --radius-control: 0.18rem;
+  --radius-panel: 0.3rem;
+  --panel-bg: rgb(var(--color-panel) / 0.62);
+  --panel-solid-bg: rgb(var(--color-surface) / 0.96);
+  --input-bg: rgb(var(--color-surface) / 0.9);
+  --overlay-bg: rgb(27 34 17 / 0.3);
+  --display-spacing: -0.08em;
+  --display-transform: uppercase;
+  --screen-border-width: 2px;
+  --screen-padding: clamp(1rem, 2vw, 1.6rem);
+  --screen-shadow: inset 0 0 0 1px rgb(229 238 163 / 0.65), inset 0 0 0 3px rgb(112 123 58 / 0.18);
+  --screen-bg:
+    linear-gradient(rgb(232 240 170 / 0.22), rgb(83 96 44 / 0.08)),
+    radial-gradient(circle at 1px 1px, rgb(48 60 30 / 0.14) 0.7px, transparent 0.9px),
+    linear-gradient(rgb(var(--color-surface) / 0.95), rgb(var(--color-panel) / 0.86));
+  --screen-outline: rgb(var(--color-border) / 0.72);
+  --rule-thickness: 2px;
+  --rule-color: rgb(var(--color-line) / 0.85);
+  --control-shadow: inset 0 -2px 0 rgb(40 47 24 / 0.18), inset 0 1px 0 rgb(235 244 176 / 0.35);
+  --pixel-grid-opacity: 0.16;
+  --pixel-grid-size: 5px;
+  --pixel-dot-opacity: 0.16;
+  --pixel-dot-size: 0.9px;
+  --pixel-glow: rgb(238 244 190 / 0.28);
+}
+
+html[data-skin="retro-lcd"] body {
+  background-image:
+    linear-gradient(rgb(219 228 153 / 0.06), rgb(105 116 61 / 0.04)),
+    radial-gradient(circle at 1px 1px, rgb(67 78 41 / 0.12) 0.85px, transparent 0.9px);
+  background-size: auto, 5px 5px;
+}
+
+html[data-skin="retro-lcd"] .skin-panel,
+html[data-skin="retro-lcd"] .skin-panel-solid {
+  border-color: rgb(var(--color-border) / 0.72);
+  box-shadow: inset 0 0 0 1px rgb(230 239 174 / 0.22), inset 0 -1px 0 rgb(36 45 20 / 0.12);
+}
+
+html[data-skin="retro-lcd"] .skin-control {
+  border-color: rgb(var(--color-border) / 0.72);
 }
 
 html, body {
@@ -23,7 +107,7 @@ html, body {
 
 body {
   color: rgb(var(--color-text));
-  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
 }
 
 * {
@@ -46,4 +130,104 @@ input,
 textarea,
 select {
   color: inherit;
+}
+
+@layer components {
+  .skin-page {
+    background: rgb(var(--color-bg));
+    color: rgb(var(--color-text));
+  }
+
+  .skin-screen {
+    position: relative;
+    overflow: hidden;
+    padding: var(--screen-padding);
+    border: var(--screen-border-width) solid var(--screen-outline);
+    border-radius: calc(var(--radius-panel) + 0.2rem);
+    background: var(--screen-bg);
+    box-shadow: var(--screen-shadow);
+  }
+
+  .skin-screen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: var(--pixel-grid-opacity);
+    background-image:
+      linear-gradient(to right, rgb(var(--color-border) / 0.2) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--color-border) / 0.14) 1px, transparent 1px);
+    background-size: var(--pixel-grid-size) var(--pixel-grid-size);
+    mix-blend-mode: multiply;
+  }
+
+  .skin-screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: var(--pixel-dot-opacity);
+    background-image: radial-gradient(circle at center, rgb(var(--color-text) / 0.4) 0 var(--pixel-dot-size), transparent calc(var(--pixel-dot-size) + 0.25px));
+    background-size: var(--pixel-grid-size) var(--pixel-grid-size);
+  }
+
+  .skin-panel {
+    border-radius: var(--radius-panel);
+    background: var(--panel-bg);
+  }
+
+  .skin-panel-solid {
+    border-radius: var(--radius-panel);
+    background: var(--panel-solid-bg);
+  }
+
+  .skin-control {
+    border-radius: var(--radius-control);
+    background: var(--input-bg);
+    box-shadow: var(--control-shadow);
+  }
+
+  .skin-display {
+    font-family: var(--font-display);
+    letter-spacing: var(--display-spacing);
+    text-transform: var(--display-transform);
+  }
+
+  .skin-label {
+    font-family: var(--font-label);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .skin-digit {
+    font-family: var(--font-digit);
+    letter-spacing: -0.06em;
+    text-transform: uppercase;
+    text-shadow: 0 0 12px var(--pixel-glow);
+  }
+
+  .skin-rule {
+    border-color: var(--rule-color);
+    border-width: var(--rule-thickness);
+  }
+
+  .skin-rule-y {
+    border-left-color: var(--rule-color);
+    border-left-width: var(--rule-thickness);
+  }
+
+  .skin-transport {
+    font-family: var(--font-label);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .skin-ledger {
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .skin-overlay {
+    background: var(--overlay-bg);
+  }
 }

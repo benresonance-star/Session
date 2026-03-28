@@ -1,8 +1,8 @@
 'use client';
-
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
+import { LcdRule, LcdTransportButton, LcdTransportLink } from '@/components/ui/LcdChrome';
+import { PageShell } from '@/components/ui/PageShell';
 import { clearPausedSession, setPausedSession } from '@/lib/session-pause-storage';
 
 function parsePlanIndex(atParam: string | undefined): number {
@@ -36,27 +36,20 @@ export function ExitSheet({
   }
 
   return (
-    <main className="min-h-screen bg-bg text-text px-6 py-10 sm:px-10">
-      <div className="mx-auto max-w-xl pt-24 text-center">
-        <h1 className="text-title">exit session?</h1>
-        <div className="mt-12 space-y-6 text-2xl">
-          <div>
-            <button type="button" onClick={handleResumeLater} className="text-text hover:text-next">
-              resume later
-            </button>
-          </div>
-          <div>
-            <button type="button" onClick={handleEndSession} className="text-text hover:text-text">
-              end session
-            </button>
-          </div>
-          <div>
-            <Link href={playHref} className="text-muted hover:text-text">
-              cancel
-            </Link>
-          </div>
+    <PageShell width="max-w-3xl" className="text-center">
+      <div className="pt-24">
+        <h1 className="skin-display text-title">exit session?</h1>
+        <LcdRule className="mt-8" />
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <LcdTransportButton type="button" onClick={handleResumeLater}>
+            resume
+          </LcdTransportButton>
+          <LcdTransportButton type="button" onClick={handleEndSession}>
+            end
+          </LcdTransportButton>
+          <LcdTransportLink href={playHref}>cancel</LcdTransportLink>
         </div>
       </div>
-    </main>
+    </PageShell>
   );
 }
