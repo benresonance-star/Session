@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.1",
+  "session_id": "posterior-chain-alpha",
+  "title": "Posterior Chain Alpha",
+  "description": "Posterior chain and shoulder-friendly strength session.",
+  "tags": ["strength", "kettlebell", "bands"],
+  "duration_minutes": 28,
+  "stages": [
+    {
+      "stage_id": "warmup",
+      "title": "Warm-up",
+      "sections": [
+        {
+          "section_id": "activation",
+          "title": "Activation",
+          "blocks": [
+            {
+              "block_id": "warmup-flow",
+              "block_type": "flow",
+              "title": "Activation Flow",
+              "rounds": 1,
+              "exercises": [
+                {
+                  "exercise_id": "band-external-rotation",
+                  "title": "Band External Rotation",
+                  "movement_type": "mobility",
+                  "equipment": {
+                    "kind": "resistance_band",
+                    "band": { "color": "yellow", "style": "loop" }
+                  },
+                  "prescription": { "mode": "reps", "reps": 15 }
+                },
+                {
+                  "exercise_id": "wall-slides",
+                  "title": "Wall Slides",
+                  "movement_type": "mobility",
+                  "equipment": { "kind": "bodyweight" },
+                  "prescription": { "mode": "reps", "reps": 10 }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "stage_id": "main",
+      "title": "Main",
+      "sections": [
+        {
+          "section_id": "strength",
+          "title": "Strength",
+          "rest_after_section_seconds": 45,
+          "blocks": [
+            {
+              "block_id": "main-rounds",
+              "block_type": "circuit_rounds",
+              "title": "Main Strength Circuit",
+              "rounds": 4,
+              "rest_between_rounds_seconds": 60,
+              "exercises": [
+                {
+                  "exercise_id": "goblet-squat",
+                  "title": "Goblet Squat",
+                  "movement_type": "strength",
+                  "equipment": {
+                    "kind": "kettlebell",
+                    "load": { "unit": "kg", "value": 16 }
+                  },
+                  "prescription": { "mode": "reps", "reps": 10 },
+                  "rest_after_seconds": 20
+                },
+                {
+                  "exercise_id": "band-row",
+                  "title": "Band Row",
+                  "movement_type": "strength",
+                  "equipment": {
+                    "kind": "resistance_band",
+                    "band": { "color": "blue", "style": "loop" }
+                  },
+                  "prescription": { "mode": "reps", "reps": 15 }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "section_id": "vo2",
+          "title": "VO2",
+          "blocks": [
+            {
+              "block_id": "vo2-emom",
+              "block_type": "emom",
+              "title": "EMOM 6",
+              "minutes": 6,
+              "exercises": [
+                {
+                  "exercise_id": "kb-swing",
+                  "title": "KB Swing",
+                  "movement_type": "conditioning",
+                  "equipment": {
+                    "kind": "kettlebell",
+                    "load": { "unit": "kg", "value": 16 }
+                  },
+                  "prescription": { "mode": "reps", "reps": 10 }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "stage_id": "cooldown",
+      "title": "Cool Down",
+      "sections": [
+        {
+          "section_id": "reset",
+          "title": "Reset",
+          "blocks": [
+            {
+              "block_id": "cooldown-flow",
+              "block_type": "flow",
+              "title": "Breathing",
+              "exercises": [
+                {
+                  "exercise_id": "breathing-90-90",
+                  "title": "90/90 Breathing",
+                  "movement_type": "breathing",
+                  "equipment": { "kind": "bodyweight" },
+                  "prescription": { "mode": "time", "seconds": 60 }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
