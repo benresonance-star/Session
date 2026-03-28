@@ -28,15 +28,12 @@ function RestPanel({
   const finishedRef = useRef(false);
 
   useEffect(() => {
-    finishedRef.current = false;
-    setRemaining(Math.max(0, step.duration_seconds));
-  }, [step.step_id, step.duration_seconds]);
-
-  useEffect(() => {
     if (remaining <= 0) {
       if (!finishedRef.current) {
         finishedRef.current = true;
-        onComplete();
+        queueMicrotask(() => {
+          onComplete();
+        });
       }
       return;
     }
@@ -114,7 +111,7 @@ export function PlayScreen({ plan }: { plan: PlaybackPlan }): JSX.Element {
   if (step.type === 'rest') {
     return (
       <RestPanel
-        key={step.step_id}
+        key={`${index}-${step.step_id}`}
         step={step}
         sessionId={plan.session_id}
         nextTitle={nextTitle}
