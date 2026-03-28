@@ -6,6 +6,7 @@ Build a minimal dark-mode workout app for creating, previewing, editing, and run
 The product should feel like a calm instrument rather than a generic fitness app.
 
 ## Current implementation snapshot
+- **JSON schema:** **`schema/session-definition.schema.json`** validates session JSON (Ajv in **`lib/session-validation.ts`**). **`schema_version`** is **`"1.1"`** or **`"1.2"`** (enum); both accept the same exercise shape. **`1.1`** sessions without new fields remain valid unchanged. Optional per-exercise **`coach`** (string, form cues / tempo / hold timing) is allowed on any supported version and is edited in the builder, shown on session detail and in play under the prescription line when set. New sessions from **`createEmptySession`** use **`schema_version: "1.2"`**; existing **`1.1`** rows are not auto-bumped on save.
 - The app runs on Next.js App Router with React and Tailwind.
 - `/`, `/home`, `/session/[id]`, `/builder/[id]`, `/builder/new`, `/play/[id]`, `/edit/[sessionId]/[exerciseId]`, and `/exit` are present.
 - **`lib/session-repository.ts`** resolves sessions: when Supabase is configured (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`), **list** and **get** read from the `session_definitions` table; otherwise the app falls back to **bundled sample sessions**. Rows are ordered by **`sort_order`** (then `title`); new rows get the next sort index on upsert.
@@ -45,6 +46,7 @@ Session structure:
 
 Supported concepts:
 - optional session-level **description** (goals, focus, equipment; for authors and AI-generated metadata)
+- optional per-exercise **`coach`** (short prose for form, tempo, or holds), validated by schema when present
 - warmup / main / cooldown stages
 - sections (sub-sessions)
 - blocks such as flow, straight sets, circuit rounds, EMOM
@@ -104,7 +106,7 @@ Purpose:
 UI:
 - session title
 - duration and tags (and optional **description** body copy when `description` is set—multi-line, prose style)
-- visible stage -> section -> exercise structure; each **block** line shows a short **structure hint** after the title (e.g. **4 rounds** for `circuit_rounds`, set counts for straight sets / supersets, EMOM minutes, timed circuit duration) so repeats are obvious before play
+- visible stage -> section -> exercise structure; each **block** line shows a short **structure hint** after the title (e.g. **4 rounds** for `circuit_rounds`, set counts for straight sets / supersets, EMOM minutes, timed circuit duration) so repeats are obvious before play; optional **coach** text under an exercise line when present
 - start session action
 - edit / duplicate secondary actions
 
@@ -126,6 +128,7 @@ UI:
 - remove and reorder controls at each structural level (icon buttons: chevron expand/collapse, arrows for move up/down, trash for remove; accessible names via `aria-label`)
 - block-type switching for flow, straight sets, circuit rounds, timed circuits, supersets, and EMOM
 - collapsible toggles for sections, blocks, and exercises so the tree can compress to title-only rows
+- per-exercise optional **coach / form cue** (textarea) for cues and timing
 - **delete session** (existing sessions only): modal warns that the session is removed from Supabase permanently; on success, navigate to **`/home`**
 
 Important distinction:
@@ -142,6 +145,7 @@ UI:
 - top line: **`← exit`** and, when not on the first step, **`← back`** (returns to the previous playback step); stage / section context; round/set progress where applicable
 - large exercise title
 - prescription line (`10 reps @ 16 kg` or `30s` for time)
+- when **`coach`** is set on the exercise, muted prose under the prescription (after **tap to adjust**)
 - **Reps / rep range:** one primary action `[ complete ]` to advance
 - **Time prescription:** large **`mm:ss`** countdown; **`[ start ]`** begins the work timer; **`[ pause ]` / `[ resume ]`** while running; **`[ complete ]`** always available to finish early; at **zero** (while running, not paused), brief **time up** copy then **auto-advance** to the next plan step (same idea as rest). Timer state is snapshotted to **`sessionStorage`** under the same **`playTimer:`** key pattern as rest when returning from adjust with **`?at=`** (invalid snapshot if prescription seconds changed is ignored).
 - persistent `next` preview

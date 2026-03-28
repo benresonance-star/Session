@@ -1,4 +1,4 @@
-export type SchemaVersion = '1.1';
+export type SchemaVersion = '1.1' | '1.2';
 
 export type StageId = 'warmup' | 'main' | 'cooldown';
 
@@ -123,6 +123,8 @@ export interface Exercise {
   tempo?: string;
   sides?: SideMode;
   notes?: string;
+  /** Form cues, tempo, or hold timing shown in builder, session detail, and play. */
+  coach?: string;
   link?: ExerciseLink;
 }
 

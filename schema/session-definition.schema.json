@@ -7,7 +7,11 @@
   "additionalProperties": false,
   "required": ["schema_version", "session_id", "title", "stages"],
   "properties": {
-    "schema_version": { "type": "string", "const": "1.1" },
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.1", "1.2"],
+      "description": "1.1 baseline; 1.2 documents the same shape with optional exercise.coach supported in tooling. Both accept optional coach on exercises."
+    },
     "session_id": {
       "type": "string",
       "minLength": 1,
@@ -293,6 +297,11 @@
         "tempo": { "type": "string", "maxLength": 40 },
         "sides": { "type": "string", "enum": ["both", "left", "right", "per_side"] },
         "notes": { "type": "string", "maxLength": 2000 },
+        "coach": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Optional form cues, tempo, or hold timing (e.g. hold three seconds at the bottom)."
+        },
         "link": { "$ref": "#/$defs/link" }
       }
     },

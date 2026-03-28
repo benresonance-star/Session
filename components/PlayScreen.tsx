@@ -205,6 +205,14 @@ function exercisePrescriptionLine(exercise: Exercise): { prescription: string; l
   return { prescription, load };
 }
 
+function exerciseCoachBlock(exercise: Exercise): JSX.Element | null {
+  const c = exercise.coach?.trim();
+  if (!c) {
+    return null;
+  }
+  return <p className="mt-4 max-w-prose whitespace-pre-wrap text-base leading-relaxed text-muted">{c}</p>;
+}
+
 function getNextExerciseTitle(steps: PlaybackPlan['steps'], startIndex: number): string | null {
   for (let i = startIndex + 1; i < steps.length; i += 1) {
     const s = steps[i];
@@ -475,6 +483,7 @@ function CircuitTimePanel({
                 {load}
               </Link>
               <div className="mt-3 text-sm text-adjust">tap to adjust</div>
+              {exerciseCoachBlock(currentExercise)}
             </div>
             <button type="button" onClick={handleExerciseComplete} className="mt-16 text-2xl text-text">
               [ complete ]
@@ -801,6 +810,7 @@ function TimedExercisePanel({
             {load}
           </Link>
           <div className="mt-3 text-sm text-adjust">tap to adjust</div>
+          {exerciseCoachBlock(step.exercise)}
         </div>
 
         <div className="mt-10 text-center text-6xl font-semibold tabular-nums tracking-tight">
@@ -990,6 +1000,7 @@ export function PlayScreen({
             {prescription}{load}
           </Link>
           <div className="mt-3 text-sm text-adjust">tap to adjust</div>
+          {exerciseCoachBlock(step.exercise)}
         </div>
 
         <button onClick={() => setIndex(index + 1)} className="mt-20 text-2xl text-text">[ complete ]</button>

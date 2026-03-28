@@ -29,6 +29,7 @@ import {
   updateBlockSetting,
   updateBlockTitle,
   updateBlockType,
+  updateExerciseCoach,
   updateExerciseEquipmentKind,
   updateExerciseLink,
   updateExerciseLoadValue,
@@ -133,7 +134,7 @@ function TextAreaInput({
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       rows={rows}
-      className="min-h-[6rem] w-full resize-y rounded-md border border-border bg-panel px-3 py-2 text-sm leading-relaxed text-text outline-none transition-colors focus:border-accent"
+      className="min-h-[6rem] w-full resize-y rounded-md border border-border bg-panel px-3 py-2 text-sm leading-relaxed text-text outline-none transition-colors placeholder:text-muted/60 focus:border-accent"
     />
   );
 }
@@ -605,6 +606,17 @@ function SessionBuilder({
                 minimum={0}
               />
             </EditorField>
+
+            <div className="lg:col-span-2">
+              <EditorField label="coach / form cue">
+                <TextAreaInput
+                  value={exercise.coach ?? ''}
+                  onChange={(value) => applyUpdate((current) => updateExerciseCoach(current, path, value))}
+                  placeholder="Form, tempo, hold timing (e.g. hold 3s at the bottom)"
+                  rows={3}
+                />
+              </EditorField>
+            </div>
 
             <div className="lg:col-span-2">
               <EditorField label="reference link">

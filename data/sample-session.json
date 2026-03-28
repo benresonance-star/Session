@@ -68,7 +68,8 @@
                     "load": { "unit": "kg", "value": 16 }
                   },
                   "prescription": { "mode": "reps", "reps": 10 },
-                  "rest_after_seconds": 20
+                  "rest_after_seconds": 20,
+                  "coach": "Sit tall; pause 2s at the bottom of each rep."
                 },
                 {
                   "exercise_id": "band-row",

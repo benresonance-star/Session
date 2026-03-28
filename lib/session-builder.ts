@@ -249,7 +249,7 @@ export function createEmptyStage(title = 'Main', stageId: StageId = 'main'): Sta
 
 export function createEmptySession(seed = 'Untitled Session'): SessionDefinition {
   return {
-    schema_version: '1.1',
+    schema_version: '1.2',
     session_id: createId(seed),
     title: seed,
     tags: ['draft'],
@@ -687,5 +687,16 @@ export function updateExerciseLink(session: SessionDefinition, path: AnyExercise
   const exercise = getExerciseFromBlock(block, path);
   if (!exercise) return next;
   exercise.link = link?.url ? link : undefined;
+  return next;
+}
+
+export function updateExerciseCoach(session: SessionDefinition, path: AnyExercisePath, coach: string): SessionDefinition {
+  const next = clone(session);
+  const block = getBlock(next, path);
+  if (!block) return next;
+  const exercise = getExerciseFromBlock(block, path);
+  if (!exercise) return next;
+  const t = coach.trim();
+  exercise.coach = t ? t : undefined;
   return next;
 }
