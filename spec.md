@@ -8,10 +8,13 @@ The product should feel like a calm instrument rather than a generic fitness app
 ## Current implementation snapshot
 - The app runs on Next.js App Router with React and Tailwind.
 - `/`, `/home`, `/session/[id]`, `/builder/[id]`, `/builder/new`, `/play/[id]`, `/edit/[sessionId]/[exerciseId]`, and `/exit` are present.
-- Routes currently resolve against local seeded session data through a small repository layer.
-- The builder is now the most complete flow in the app and supports structural editing, block-type conversion, import/export, and schema validation.
+- **`lib/session-repository.ts`** resolves sessions: when Supabase is configured (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`), **list** and **get** read from the `session_definitions` table; otherwise the app falls back to **bundled sample sessions**.
+- **`PUT /api/sessions`** upserts a validated `SessionDefinition` into Supabase (same table). The builder’s **save to Supabase** action calls this route.
+- The builder is the most complete flow: structural editing, block-type conversion, import/export, and schema validation.
 - Builder collapse state for sections, blocks, and exercises is UI-only and is not part of exported session JSON.
-- Persistence, run history, and post-run mutation workflows are still future work.
+- **Session metadata:** optional **`description`** (multi-line, schema `maxLength` 2000) is documented in the JSON schema, edited in the builder (**session description** textarea), and shown on the **session detail** page when present.
+- **Play mode:** the playback compiler emits **exercise** and **rest** steps only (structural boundary steps such as stage/section/block start-end are not inserted, so play does not pause on those markers). Rest uses a **live countdown** (`mm:ss`), auto-advances at zero, and supports skip. After the final step, a **completion splash** (CONGRATULATIONS / Session completed) covers the screen; **tap** navigates to **`/home`**.
+- Run history, durable run state, and post-run mutation workflows are still future work.
 
 ## Design principles
 - Typography-led interface
@@ -33,6 +36,7 @@ Session structure:
 - Exercise
 
 Supported concepts:
+- optional session-level **description** (goals, focus, equipment; for authors and AI-generated metadata)
 - warmup / main / cooldown stages
 - sections (sub-sessions)
 - blocks such as flow, straight sets, circuit rounds, EMOM
@@ -50,6 +54,9 @@ Supported concepts:
 6. `/edit/[sessionId]/[exerciseId]` — Adjust exercise values during a run
 7. `/exit?sessionId=...` — Exit session sheet
 8. Root `/` should redirect to `/home`
+
+### API (server)
+- **`PUT /api/sessions`** — body: full `SessionDefinition` JSON; validates against the canonical schema; upserts into Supabase when configured. Used by the builder save action.
 
 ## Screen requirements
 
@@ -79,7 +86,7 @@ Purpose:
 
 UI:
 - session title
-- duration and summary
+- duration and tags (and optional **description** body copy when `description` is set—multi-line, prose style)
 - visible stage -> section -> exercise structure
 - start session action
 - edit / duplicate secondary actions
@@ -89,10 +96,11 @@ Purpose:
 - create a new session or structurally edit an existing one
 - update stages, sections, blocks, exercises, prescriptions, load, and rest settings
 - import and export valid JSON
+- edit optional **session description** (multi-line) for targeting / context
 
 UI:
 - `← session` or `← sessions`
-- session title and summary
+- session metadata: title, id, **session description** (textarea), duration, tags; **save to Supabase** when API and env are configured
 - visible stage -> section -> block -> exercise tree
 - structured editing controls rather than raw JSON by default
 - lightweight `+ add exercise`, `+ add block`, `+ add section`, `+ add stage`
@@ -120,13 +128,22 @@ UI:
 
 ### 5. Play / Rest
 Purpose:
-- show countdown and next exercise
+- show **live** countdown and next exercise
 
 UI:
 - `rest`
-- large countdown
+- large **countdown** that decrements each second (`mm:ss`); **auto-advance** to the next step at zero
 - next exercise preview
-- optional skip action
+- **skip** action (advance immediately)
+
+### 5b. Play / Session complete (end of run)
+Purpose:
+- acknowledge a finished session and return to the list
+
+UI:
+- full-screen tappable area after the last playback step
+- **CONGRATULATIONS** and **Session completed** (empty plan shows **Nothing to play** with the same tap target)
+- navigates to **`/home`** on tap (not the exit sheet)
 
 ### 6. Edit Exercise
 Purpose:
@@ -150,9 +167,9 @@ UI:
 - `cancel`
 
 ## Data architecture
-- `SessionDefinition`: authoring / import-export format
+- `SessionDefinition`: authoring / import-export format (includes optional `description`, `tags`, `duration_minutes`, `notes`, etc.)
 - `NormalizedSessionDefinition`: compile-time normalized representation
-- `PlaybackPlan`: flattened runtime plan
+- `PlaybackPlan`: flattened runtime plan for play mode — **currently compiled to `exercise` and `rest` steps only** for the player UI (structural step types remain in TypeScript for potential future use)
 - `SessionRun`: what happened during a specific run
 - `SessionMutationProposal`: suggested changes after a run
 
@@ -166,8 +183,8 @@ UI:
 - Collapse/expand state is ephemeral UI state and should not affect validation or exports
 
 ## Implementation notes
-- Use sample local JSON first
-- Use a small local repository layer for seeded session resolution before persistence exists
+- Use sample local JSON when Supabase is not configured
+- Use **`session-repository`** for list/get; optional Supabase-backed persistence and **`PUT /api/sessions`** for saves from the builder
 - Use provided TypeScript types as source of truth in code
 - Use provided JSON schema as canonical import/export contract
 - Compile nested session structure into a flat playback plan before rendering play mode
@@ -178,19 +195,20 @@ UI:
 
 ## Current builder status
 - `SessionBuilder` currently supports:
-- session title, id, description, duration, and tags editing
+- session title, id, **session description** (multi-line textarea), duration, and tags editing
+- **save to Supabase** (via `PUT /api/sessions`) when environment variables are set
 - stage, section, block, and exercise add/remove/reorder flows
 - block-type conversion with block-shape-aware controls
 - superset pair editing
 - JSON import, schema validation, and JSON export
 - collapsible sections, blocks, and exercises
-- Builder edits are currently local to the client session; persistence is not implemented yet
+- Unsaved edits remain client-side until the user saves to Supabase or exports JSON
 
 ## Known gaps
-- No durable save/persistence layer yet
-- No session duplication workflow yet
-- Play mode and adjust flow still need deeper runtime state work to match the builder’s sophistication
-- There is no authored-session storage backend yet; seeded local sessions remain the route source of truth
+- No session **duplication** workflow yet (detail page control is still inert)
+- No **run history** or durable in-progress playback state
+- Play mode uses local step index only (no integration with `PlaybackState` / timer engine beyond rest countdown in UI)
+- When Supabase is not configured, only sample/fallback sessions are available for list/detail/play unless JSON is imported elsewhere
 
 ## Prompt for Cursor
 Build a minimal dark-mode workout app using Next.js + React + Tailwind.
