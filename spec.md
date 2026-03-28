@@ -13,7 +13,8 @@ The product should feel like a calm instrument rather than a generic fitness app
 - The builder is the most complete flow: structural editing, block-type conversion, import/export, and schema validation.
 - Builder collapse state for sections, blocks, and exercises is UI-only and is not part of exported session JSON.
 - **Session metadata:** optional **`description`** (multi-line, schema `maxLength` 2000) is documented in the JSON schema, edited in the builder (**session description** textarea), and shown on the **session detail** page when present.
-- **Play mode:** the playback compiler emits **exercise** and **rest** steps only (structural boundary steps such as stage/section/block start-end are not inserted, so play does not pause on those markers). Rest uses a **live countdown** (`mm:ss`), auto-advances at zero, and supports skip. After the final step, a **completion splash** (CONGRATULATIONS / Session completed) covers the screen; **tap** navigates to **`/home`**.
+- **Play mode:** the playback compiler emits **exercise** and **rest** steps only (structural boundary steps such as stage/section/block start-end are not inserted, so play does not pause on those markers). Rest uses a **live countdown** (`mm:ss`), auto-advances at zero, and supports skip. **← back** (under **← exit**) returns to the previous step when `index > 0`, so an early **complete** or **skip** can be undone; rest timers reset if the user navigates away and returns to that rest. After the final step, a **completion splash** (CONGRATULATIONS / Session completed) covers the screen; **tap** navigates to **`/home`**.
+- **Next.js:** `serverExternalPackages: ['@supabase/supabase-js']` in `next.config.mjs` avoids broken server vendor chunks for Supabase (e.g. missing `./vendor-chunks/@supabase.js`); clear **`.next`** after config changes if dev misbehaves.
 - Run history, durable run state, and post-run mutation workflows are still future work.
 
 ## Design principles
@@ -87,7 +88,7 @@ Purpose:
 UI:
 - session title
 - duration and tags (and optional **description** body copy when `description` is set—multi-line, prose style)
-- visible stage -> section -> exercise structure
+- visible stage -> section -> exercise structure; each **block** line shows a short **structure hint** after the title (e.g. **4 rounds** for `circuit_rounds`, set counts for straight sets / supersets, EMOM minutes, timed circuit duration) so repeats are obvious before play
 - start session action
 - edit / duplicate secondary actions
 
@@ -117,9 +118,10 @@ Important distinction:
 Purpose:
 - execute one exercise step
 - see current context and next exercise
+- recover from an accidental advance to the next step
 
 UI:
-- top line: `← exit`, stage / section context, progress
+- top line: **`← exit`** and, when not on the first step, **`← back`** (returns to the previous playback step); stage / section context; round/set progress where applicable
 - large exercise title
 - prescription line (`10 reps @ 16 kg`)
 - one primary action `[ complete ]`
@@ -131,6 +133,7 @@ Purpose:
 - show **live** countdown and next exercise
 
 UI:
+- same **← exit** / **← back** (when past the first step) pattern as exercise
 - `rest`
 - large **countdown** that decrements each second (`mm:ss`); **auto-advance** to the next step at zero
 - next exercise preview
