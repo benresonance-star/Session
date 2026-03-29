@@ -12,7 +12,7 @@ import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } 
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { CogIcon } from '@/components/ui/CogIcon';
 import { LcdRule } from '@/components/ui/LcdChrome';
@@ -140,6 +140,11 @@ export function SessionList({
   sessions: SessionDefinition[];
   persistOrder?: boolean;
 }): JSX.Element {
+  const isHydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
   const router = useRouter();
   const { skin } = useSkin();
   const [items, setItems] = useState(sessions);
@@ -538,7 +543,7 @@ export function SessionList({
             <p className="text-xl text-muted">
               No sessions yet. Create one in the builder and save to Supabase, or configure env to use the bundled sample.
             </p>
-          ) : persistOrder ? (
+          ) : persistOrder && isHydrated ? (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => void handleDragEnd(e)}>
               <SortableContext items={items.map((s) => s.session_id)} strategy={verticalListSortingStrategy}>
                 {items.map((session) => (
