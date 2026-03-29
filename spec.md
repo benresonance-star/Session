@@ -10,6 +10,7 @@ The product should feel like a calm instrument rather than a generic fitness app
 - The app runs on Next.js App Router with React and Tailwind.
 - **UI skins:** the app now supports token-driven skins via **`html[data-skin]`**. **`lib/ui-skin.ts`** defines the curated skins plus the LCD tuning schema, **`components/providers/SkinProvider.tsx`** persists the selected skin in **`localStorage`** (`workout-ui-skin`), mirrors LCD tuning into a local cache, and syncs the active values to the document, and **`app/layout.tsx`** applies the initial skin and globally synced LCD tuning before React paints to avoid a flash of the wrong theme.
 - **Current skins:** **`minimal-dark`** remains the default look. **`retro-lcd`** is an alternate full-app skin with LCD-style palette tokens, pixel-grid display texture, bitmap / device fonts, squarer chrome, and shared retro display primitives in **`components/ui/LcdChrome.tsx`**. Bitmap fonts come from **`@fontsource/press-start-2p`** and **`@fontsource/vt323`**.
+- **iPhone install / standalone mode:** the app now includes App Router web-app metadata in **`app/layout.tsx`**, a standalone manifest in **`app/manifest.ts`**, and an Apple touch icon in **`app/apple-icon.png`** so iPhone users can use **Share → Add to Home Screen** and launch the Vercel app in standalone mode with Safari browser chrome removed. Remaining visible UI should be standard iOS system chrome rather than Safari controls.
 - `/`, `/home`, `/session/[id]`, `/builder/[id]`, `/builder/new`, `/play/[id]`, `/edit/[sessionId]/[exerciseId]`, and `/exit` are present.
 - **`lib/session-repository.ts`** resolves sessions: when Supabase is configured (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`), **list** and **get** read from the `session_definitions` table; otherwise the app falls back to **bundled sample sessions**. Rows are ordered by **`sort_order`** (then `title`); new rows get the next sort index on upsert.
 - **`lib/session-draft.ts`** provides **`createNewSessionDraft()`** for **`/builder/new`** so that route does not import the `server-only` session repository (avoids fragile server chunks in dev).
@@ -46,6 +47,7 @@ The product should feel like a calm instrument rather than a generic fitness app
 - Skins should be selected from the **home** settings menu and persist per browser / device using **`localStorage`**.
 - **Retro LCD tuning** should be edited from the **home** settings menu, apply live, and persist as a single shared Supabase-backed profile across devices when Supabase is configured. A local browser cache may be used as a temporary fallback.
 - Large retro display headings should scale with viewport size and allow emergency intra-word wrapping so long all-caps titles do not crop inside the LCD frame on smaller devices.
+- iPhone home-screen installs should use the retro LCD kettlebell Apple icon and open the app in standalone mode via the web manifest / Apple web-app metadata.
 - Shared semantic tokens live in **`app/globals.css`** and should remain the primary surface for future skin work. Shared skin-aware wrappers / primitives include **`PageShell`**, **`ActionButton`**, **`EditorPanel`**, and **`LcdChrome`**.
 
 ## Session model
@@ -83,6 +85,11 @@ Supported concepts:
 - **`DELETE /api/sessions/[sessionId]`** — deletes the row with that **`session_id`** from Supabase when configured. Used by the builder **delete session** flow after confirmation.
 - **`GET /api/lcd-tuning`** — returns the global retro LCD tuning payload (or defaults when no profile exists yet). Used for shared device-consistent LCD presentation.
 - **`PUT /api/lcd-tuning`** — body: `LcdTuningValues`; normalizes and upserts the singleton global retro LCD tuning profile in Supabase when configured.
+
+### Web app install metadata
+- **`app/manifest.ts`** serves **`/manifest.webmanifest`** with **`display: 'standalone'`**, **`start_url: '/home'`**, **`scope: '/'`**, theme/background colors, and icon metadata for installable web-app behavior.
+- **`app/layout.tsx`** exports Apple web-app metadata (`appleWebApp`, `manifest`, and viewport theme color) so iPhone home-screen launches use standalone presentation when opened from the installed icon.
+- **`app/apple-icon.png`** is the Apple touch icon asset for iPhone home-screen installs and should remain an opaque **180×180** PNG.
 
 ## Screen requirements
 
