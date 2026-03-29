@@ -47,6 +47,7 @@ The product should feel like a calm instrument rather than a generic fitness app
 - Skins should be selected from the **home** settings menu and persist per browser / device using **`localStorage`**.
 - **Retro LCD tuning** should be edited from the **home** settings menu, apply live, and persist as a single shared Supabase-backed profile across devices when Supabase is configured. A local browser cache may be used as a temporary fallback.
 - Large retro display headings should scale with viewport size and allow emergency intra-word wrapping so long all-caps titles do not crop inside the LCD frame on smaller devices.
+- When **`retro-lcd`** is active, the outer app background should also carry a subtler animated LCD field (pixel grid / shimmer) so the area outside the main screen frame feels like the same device surface rather than flat empty space.
 - iPhone home-screen installs should use the retro LCD kettlebell Apple icon and open the app in standalone mode via the web manifest / Apple web-app metadata.
 - Shared semantic tokens live in **`app/globals.css`** and should remain the primary surface for future skin work. Shared skin-aware wrappers / primitives include **`PageShell`**, **`ActionButton`**, **`EditorPanel`**, and **`LcdChrome`**.
 

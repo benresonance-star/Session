@@ -114,10 +114,35 @@ html[data-skin="retro-lcd"] {
 }
 
 html[data-skin="retro-lcd"] body {
+  position: relative;
+  background-image: linear-gradient(rgb(219 228 153 / 0.06), rgb(105 116 61 / 0.04));
+  background-size: auto;
+}
+
+html[data-skin="retro-lcd"] body::before,
+html[data-skin="retro-lcd"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+html[data-skin="retro-lcd"] body::before {
+  opacity: calc(var(--pixel-grid-opacity) * 0.72);
   background-image:
-    linear-gradient(rgb(219 228 153 / 0.06), rgb(105 116 61 / 0.04)),
-    radial-gradient(circle at 1px 1px, rgb(67 78 41 / 0.12) 0.85px, transparent 0.9px);
-  background-size: auto, 5px 5px;
+    linear-gradient(to right, rgb(var(--color-border) / 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--color-border) / 0.08) 1px, transparent 1px);
+  background-size: var(--pixel-grid-size) var(--pixel-grid-size);
+  mix-blend-mode: multiply;
+}
+
+html[data-skin="retro-lcd"] body::after {
+  opacity: calc(var(--pixel-dot-opacity) * 0.68);
+  background-image:
+    radial-gradient(circle at center, rgb(var(--color-text) / 0.22) 0 var(--pixel-dot-size), transparent calc(var(--pixel-dot-size) + 0.2px)),
+    linear-gradient(rgb(232 240 170 / 0.08), rgb(83 96 44 / 0.06));
+  background-size: var(--pixel-grid-size) var(--pixel-grid-size), auto;
 }
 
 html[data-skin="retro-lcd"] .skin-panel,
@@ -370,7 +395,19 @@ select {
 }
 
 html[data-skin="retro-lcd"] .skin-screen {
+  position: relative;
+  z-index: 1;
   animation: lcdScreenBreathe var(--screen-breathe-speed) ease-in-out infinite;
+}
+
+html[data-skin="retro-lcd"] body::before {
+  animation: lcdGridDrift calc(var(--scan-drift-speed) * 1.4) linear infinite;
+}
+
+html[data-skin="retro-lcd"] body::after {
+  animation:
+    lcdGridDrift calc(var(--scan-drift-speed) * 1.85) ease-in-out infinite reverse,
+    lcdDotFlicker calc(var(--pixel-shimmer-speed) * 1.25) ease-in-out infinite;
 }
 
 html[data-skin="retro-lcd"] .skin-screen::before {
@@ -406,6 +443,8 @@ html[data-skin="retro-lcd"] .skin-transport:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html[data-skin="retro-lcd"] body::before,
+  html[data-skin="retro-lcd"] body::after,
   html[data-skin="retro-lcd"] .skin-screen,
   html[data-skin="retro-lcd"] .skin-screen::before,
   html[data-skin="retro-lcd"] .skin-screen::after,
