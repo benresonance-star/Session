@@ -17,6 +17,8 @@ import { ActionButton } from '@/components/ui/ActionButton';
 import { CogIcon } from '@/components/ui/CogIcon';
 import { LcdRule } from '@/components/ui/LcdChrome';
 import { PageShell } from '@/components/ui/PageShell';
+import { useSkin } from '@/components/providers/SkinProvider';
+import { LcdTuningPanel } from '@/components/ui/LcdTuningPanel';
 import { SkinMenuSection } from '@/components/ui/SkinMenuSection';
 import { safeServiceErrorMessage } from '@/lib/safe-service-error';
 import { parseImportedSession } from '@/lib/session-validation';
@@ -139,11 +141,13 @@ export function SessionList({
   persistOrder?: boolean;
 }): JSX.Element {
   const router = useRouter();
+  const { skin } = useSkin();
   const [items, setItems] = useState(sessions);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const [lcdTuningOpen, setLcdTuningOpen] = useState(false);
   const [schemaCopyNotice, setSchemaCopyNotice] = useState<string | null>(null);
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
@@ -242,6 +246,10 @@ export function SessionList({
     setPasteErrors([]);
   }, []);
 
+  const closeLcdTuning = useCallback(() => {
+    setLcdTuningOpen(false);
+  }, []);
+
   useEffect(() => {
     if (!pasteModalOpen) {
       return;
@@ -256,6 +264,12 @@ export function SessionList({
     document.addEventListener('keydown', handlePasteModalKey);
     return () => document.removeEventListener('keydown', handlePasteModalKey);
   }, [pasteModalOpen, pasteSubmitting, closePasteModal]);
+
+  useEffect(() => {
+    if (skin !== 'retro-lcd' && lcdTuningOpen) {
+      setLcdTuningOpen(false);
+    }
+  }, [skin, lcdTuningOpen]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -416,7 +430,7 @@ export function SessionList({
       />
       <div className="mx-auto max-w-xl">
         <div className="mb-10 flex items-center justify-between">
-          <h1 className="skin-display text-display">sessions</h1>
+          <h1 className="skin-display skin-display-live skin-ghost text-display">sessions</h1>
           <div className="relative" ref={settingsMenuRef}>
             <button
               type="button"
@@ -482,6 +496,20 @@ export function SessionList({
                 >
                   copy JSON schema
                 </button>
+                {skin === 'retro-lcd' ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={importing || pasteSubmitting}
+                    className="skin-control flex w-full rounded-[var(--radius-control)] px-3 py-2 text-left text-muted transition-colors hover:bg-bg hover:text-text disabled:pointer-events-none disabled:opacity-40"
+                    onClick={() => {
+                      setSettingsMenuOpen(false);
+                      setLcdTuningOpen(true);
+                    }}
+                  >
+                    LCD tuning...
+                  </button>
+                ) : null}
                 <SkinMenuSection
                   disabled={importing || pasteSubmitting}
                   onSelect={() => {
@@ -610,6 +638,7 @@ export function SessionList({
           </div>
         </div>
       ) : null}
+      <LcdTuningPanel open={lcdTuningOpen} onClose={closeLcdTuning} />
     </PageShell>
   );
 }

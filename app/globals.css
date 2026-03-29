@@ -39,6 +39,21 @@
   --pixel-dot-opacity: 0;
   --pixel-dot-size: 1px;
   --pixel-glow: rgb(255 255 255 / 0);
+  --pixel-shimmer-speed: 0s;
+  --pixel-shimmer-strength: 0;
+  --scan-drift-speed: 0s;
+  --scan-drift-distance: 0px;
+  --screen-breathe-speed: 0s;
+  --screen-breathe-strength: 0;
+  --text-jitter-speed: 0s;
+  --text-jitter-distance: 0px;
+  --digit-pulse-speed: 0s;
+  --digit-pulse-strength: 0;
+  --ghost-offset-x: 0px;
+  --ghost-offset-y: 0px;
+  --ghost-shadow-a: rgb(255 255 255 / 0);
+  --ghost-shadow-b: rgb(255 255 255 / 0);
+  --transport-hover-lift: 0px;
 }
 
 html[data-skin="retro-lcd"] {
@@ -81,6 +96,21 @@ html[data-skin="retro-lcd"] {
   --pixel-dot-opacity: 0.16;
   --pixel-dot-size: 0.9px;
   --pixel-glow: rgb(238 244 190 / 0.28);
+  --pixel-shimmer-speed: 8.5s;
+  --pixel-shimmer-strength: 0.08;
+  --scan-drift-speed: 10s;
+  --scan-drift-distance: 2px;
+  --screen-breathe-speed: 6.5s;
+  --screen-breathe-strength: 0.03;
+  --text-jitter-speed: 5.5s;
+  --text-jitter-distance: 0.6px;
+  --digit-pulse-speed: 2.8s;
+  --digit-pulse-strength: 0.08;
+  --ghost-offset-x: 0.6px;
+  --ghost-offset-y: 0.35px;
+  --ghost-shadow-a: rgb(39 88 121 / 0.23);
+  --ghost-shadow-b: rgb(163 102 38 / 0.16);
+  --transport-hover-lift: -1px;
 }
 
 html[data-skin="retro-lcd"] body {
@@ -98,6 +128,97 @@ html[data-skin="retro-lcd"] .skin-panel-solid {
 
 html[data-skin="retro-lcd"] .skin-control {
   border-color: rgb(var(--color-border) / 0.72);
+}
+
+@keyframes lcdGridDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  33% {
+    transform: translate3d(var(--scan-drift-distance), 0, 0);
+  }
+
+  66% {
+    transform: translate3d(calc(var(--scan-drift-distance) * -0.75), var(--scan-drift-distance), 0);
+  }
+}
+
+@keyframes lcdDotFlicker {
+  0%,
+  100% {
+    opacity: calc(var(--pixel-dot-opacity) - (var(--pixel-shimmer-strength) * 0.35));
+  }
+
+  30% {
+    opacity: calc(var(--pixel-dot-opacity) + var(--pixel-shimmer-strength));
+  }
+
+  65% {
+    opacity: calc(var(--pixel-dot-opacity) - (var(--pixel-shimmer-strength) * 0.15));
+  }
+}
+
+@keyframes lcdScreenBreathe {
+  0%,
+  100% {
+    filter: brightness(calc(1 - (var(--screen-breathe-strength) * 0.35))) saturate(1);
+  }
+
+  50% {
+    filter: brightness(calc(1 + var(--screen-breathe-strength))) saturate(1.02);
+  }
+}
+
+@keyframes lcdHeadingJitter {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  20% {
+    transform: translate3d(var(--text-jitter-distance), 0, 0);
+  }
+
+  40% {
+    transform: translate3d(calc(var(--text-jitter-distance) * -0.6), 0, 0);
+  }
+
+  70% {
+    transform: translate3d(0, calc(var(--text-jitter-distance) * 0.35), 0);
+  }
+}
+
+@keyframes lcdDigitPulse {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: brightness(calc(1 - (var(--digit-pulse-strength) * 0.2)));
+  }
+
+  50% {
+    transform: translate3d(0, calc(var(--text-jitter-distance) * -0.5), 0)
+      scale(calc(1 + (var(--digit-pulse-strength) * 0.2)));
+    filter: brightness(calc(1 + var(--digit-pulse-strength)));
+  }
+}
+
+@keyframes lcdGhostShift {
+  0%,
+  100% {
+    text-shadow:
+      var(--ghost-offset-x) var(--ghost-offset-y) 0 var(--ghost-shadow-a),
+      calc(var(--ghost-offset-x) * -1) calc(var(--ghost-offset-y) * -1) 0 var(--ghost-shadow-b),
+      0 0 12px var(--pixel-glow);
+  }
+
+  50% {
+    text-shadow:
+      calc(var(--ghost-offset-x) * -0.5) var(--ghost-offset-y) 0 var(--ghost-shadow-a),
+      var(--ghost-offset-x) calc(var(--ghost-offset-y) * -0.5) 0 var(--ghost-shadow-b),
+      0 0 16px var(--pixel-glow);
+  }
 }
 
 html, body {
@@ -206,6 +327,18 @@ select {
     text-shadow: 0 0 12px var(--pixel-glow);
   }
 
+  .skin-display-live {
+    will-change: transform, text-shadow, filter;
+  }
+
+  .skin-digit-live {
+    will-change: transform, text-shadow, filter;
+  }
+
+  .skin-ghost {
+    will-change: text-shadow;
+  }
+
   .skin-rule {
     border-color: var(--rule-color);
     border-width: var(--rule-thickness);
@@ -229,5 +362,57 @@ select {
 
   .skin-overlay {
     background: var(--overlay-bg);
+  }
+}
+
+html[data-skin="retro-lcd"] .skin-screen {
+  animation: lcdScreenBreathe var(--screen-breathe-speed) ease-in-out infinite;
+}
+
+html[data-skin="retro-lcd"] .skin-screen::before {
+  animation: lcdGridDrift var(--scan-drift-speed) linear infinite;
+}
+
+html[data-skin="retro-lcd"] .skin-screen::after {
+  animation:
+    lcdGridDrift calc(var(--scan-drift-speed) * 1.35) ease-in-out infinite reverse,
+    lcdDotFlicker var(--pixel-shimmer-speed) ease-in-out infinite;
+}
+
+html[data-skin="retro-lcd"] .skin-display-live {
+  animation: lcdHeadingJitter var(--text-jitter-speed) steps(2, end) infinite;
+}
+
+html[data-skin="retro-lcd"] .skin-digit-live {
+  animation:
+    lcdDigitPulse var(--digit-pulse-speed) ease-in-out infinite,
+    lcdHeadingJitter calc(var(--text-jitter-speed) * 0.65) steps(2, end) infinite;
+}
+
+html[data-skin="retro-lcd"] .skin-ghost {
+  animation: lcdGhostShift calc(var(--digit-pulse-speed) * 1.8) ease-in-out infinite;
+}
+
+html[data-skin="retro-lcd"] .skin-transport:hover,
+html[data-skin="retro-lcd"] .skin-transport:focus-visible {
+  transform: translateY(var(--transport-hover-lift));
+  text-shadow:
+    calc(var(--ghost-offset-x) * 0.75) 0 0 var(--ghost-shadow-a),
+    calc(var(--ghost-offset-x) * -0.75) 0 0 var(--ghost-shadow-b);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-skin="retro-lcd"] .skin-screen,
+  html[data-skin="retro-lcd"] .skin-screen::before,
+  html[data-skin="retro-lcd"] .skin-screen::after,
+  html[data-skin="retro-lcd"] .skin-display-live,
+  html[data-skin="retro-lcd"] .skin-digit-live,
+  html[data-skin="retro-lcd"] .skin-ghost {
+    animation: none !important;
+  }
+
+  html[data-skin="retro-lcd"] .skin-transport:hover,
+  html[data-skin="retro-lcd"] .skin-transport:focus-visible {
+    transform: none;
   }
 }

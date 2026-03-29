@@ -3,6 +3,7 @@ import '@fontsource/vt323';
 import '@/app/globals.css';
 import type { Metadata } from 'next';
 import { SkinProvider } from '@/components/providers/SkinProvider';
+import { loadGlobalLcdTuningBootstrap } from '@/lib/lcd-tuning-repository';
 import { DEFAULT_UI_SKIN, getUiSkinInitScript } from '@/lib/ui-skin';
 
 export const metadata: Metadata = {
@@ -10,14 +11,28 @@ export const metadata: Metadata = {
   description: 'Minimal workout app starter'
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }): JSX.Element {
+export default async function RootLayout({ children }: { children: React.ReactNode }): Promise<JSX.Element> {
+  const initialLcdTuning = await loadGlobalLcdTuningBootstrap();
+
   return (
     <html lang="en" data-skin={DEFAULT_UI_SKIN} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: getUiSkinInitScript() }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: getUiSkinInitScript({
+              initialLcdTuning: initialLcdTuning.values,
+              preferInitialLcdTuning: initialLcdTuning.isAuthoritative
+            })
+          }}
+        />
       </head>
       <body>
-        <SkinProvider>{children}</SkinProvider>
+        <SkinProvider
+          initialLcdTuning={initialLcdTuning.values}
+          preferInitialLcdTuning={initialLcdTuning.isAuthoritative}
+        >
+          {children}
+        </SkinProvider>
       </body>
     </html>
   );

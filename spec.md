@@ -8,7 +8,7 @@ The product should feel like a calm instrument rather than a generic fitness app
 ## Current implementation snapshot
 - **JSON schema:** **`schema/session-definition.schema.json`** validates session JSON (Ajv in **`lib/session-validation.ts`**). **`schema_version`** is **`"1.1"`** or **`"1.2"`** (enum); both accept the same exercise shape. Optional per-exercise **`coach`** is edited in the builder and **shown in play mode only** (not on the session preview / detail page before start). **Version emission:** untouched sessions stay **`1.1`**. On **save**, **export**, and **`PUT /api/sessions`**, **`prepareSessionForPersistence`** sets **`schema_version`** to **`"1.2"`** when any exercise has non-empty **`coach`**, otherwise leaves the existing **`schema_version`** unchanged (no auto-downgrade from **`1.2`** when coach is cleared). New drafts from **`createEmptySession`** start at **`1.1`**.
 - The app runs on Next.js App Router with React and Tailwind.
-- **UI skins:** the app now supports token-driven skins via **`html[data-skin]`**. **`lib/ui-skin.ts`** defines the curated skins, **`components/providers/SkinProvider.tsx`** persists the user’s choice in **`localStorage`** (`workout-ui-skin`) and syncs it to the document, and **`app/layout.tsx`** applies the initial skin before React paints to avoid a flash of the wrong theme.
+- **UI skins:** the app now supports token-driven skins via **`html[data-skin]`**. **`lib/ui-skin.ts`** defines the curated skins plus the LCD tuning schema, **`components/providers/SkinProvider.tsx`** persists the selected skin in **`localStorage`** (`workout-ui-skin`), mirrors LCD tuning into a local cache, and syncs the active values to the document, and **`app/layout.tsx`** applies the initial skin and globally synced LCD tuning before React paints to avoid a flash of the wrong theme.
 - **Current skins:** **`minimal-dark`** remains the default look. **`retro-lcd`** is an alternate full-app skin with LCD-style palette tokens, pixel-grid display texture, bitmap / device fonts, squarer chrome, and shared retro display primitives in **`components/ui/LcdChrome.tsx`**. Bitmap fonts come from **`@fontsource/press-start-2p`** and **`@fontsource/vt323`**.
 - `/`, `/home`, `/session/[id]`, `/builder/[id]`, `/builder/new`, `/play/[id]`, `/edit/[sessionId]/[exerciseId]`, and `/exit` are present.
 - **`lib/session-repository.ts`** resolves sessions: when Supabase is configured (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`), **list** and **get** read from the `session_definitions` table; otherwise the app falls back to **bundled sample sessions**. Rows are ordered by **`sort_order`** (then `title`); new rows get the next sort index on upsert.
@@ -17,7 +17,7 @@ The product should feel like a calm instrument rather than a generic fitness app
 - **`PATCH /api/sessions/order`** accepts `{ session_ids: string[] }` (full ordered list, no duplicates) and updates **`sort_order`** for each row when Supabase is configured. Used by the home session list when drag-reorder is enabled.
 - **`DELETE /api/sessions/[sessionId]`** removes the matching row from **`session_definitions`** when Supabase is configured. Used from **`/builder/[id]`** only (not **`/builder/new`**) after the user confirms in a modal.
 - The builder is the most complete flow: structural editing, block-type conversion, import/export, schema validation, optional **delete session**, and a compact header: **save to Supabase** is shown only when the editor has **unsaved changes** (working copy differs from the last loaded or successfully saved snapshot). **validate**, **import JSON**, **export JSON**, and **delete session** live under a **settings cog** dropdown (with **lucide-react** icon controls for expand/collapse, reorder, and remove on stage/section/block/exercise rows). Builder and home both use the shared **`components/ui/CogIcon.tsx`** SVG for that cog.
-- **`SessionList`** (**`/home`**): **settings cog** menu with **create new session** (**`/builder/new`**), **import JSON** (file → **`parseImportedSession`** then **`PUT /api/sessions`**), **paste JSON** (modal with textarea, **cancel** / **import**; validates then same **`PUT`**; errors listed with schema paths for correction), **copy JSON schema** (clipboard, transient **JSON schema copied** confirmation), and a **skin selector** for switching between curated UI skins.
+- **`SessionList`** (**`/home`**): **settings cog** menu with **create new session** (**`/builder/new`**), **import JSON** (file → **`parseImportedSession`** then **`PUT /api/sessions`**), **paste JSON** (modal with textarea, **cancel** / **import**; validates then same **`PUT`**; errors listed with schema paths for correction), **copy JSON schema** (clipboard, transient **JSON schema copied** confirmation), a **skin selector** for switching between curated UI skins, and an **LCD tuning** overlay for the **`retro-lcd`** skin. LCD tuning is stored in Supabase as one shared global profile when configured, so retro display parameters stay aligned across devices.
 - Builder collapse state for sections, blocks, and exercises is UI-only and is not part of exported session JSON.
 - **Session metadata:** optional **`description`** (multi-line, schema `maxLength` 2000) is documented in the JSON schema, edited in the builder (**session description** textarea), and shown on the **session detail** page when present.
 - **Play mode:** the playback compiler emits **`exercise`**, **`rest`**, and **`circuit_time_play`** steps (no structural stage/section/block marker steps). Normal **exercise** steps with a **time** prescription use a **work countdown** (`mm:ss`) with **`[ start ]`**, **`[ pause ]` / `[ resume ]`**, **`[ complete ]`** (early exit), and **auto-advance at zero**; **`exercise`** steps with **reps** / **rep range** use **`[ complete ]`** only. **Rest** steps use a **live countdown** (`mm:ss`), auto-advance at zero, and skip. **← back** (under **← exit**) returns to the previous step when `index > 0`. **`circuit_time` blocks** compile to a **single `circuit_time_play` step**: a **block-level countdown** from `duration_seconds`, **`[ start ]`** before the clock runs, **`[ pause ]` / `[ resume ]`**, cycling **exercises** in order with **`[ complete ]`**; optional **per-exercise** `rest_after_seconds` shows an in-block rest timer (skip supported). While the block clock runs, time counts down during rests too. When time reaches **zero**, the UI shows **time up — finish this step**; the user **finishes the current exercise or rest**, then play **advances past the circuit** (no extra rest after time up if they were on an exercise). After the final plan step, a **completion splash** (CONGRATULATIONS / Session completed); **tap** navigates to **`/home`**.
@@ -44,6 +44,7 @@ The product should feel like a calm instrument rather than a generic fitness app
 - **Default skin:** **`minimal-dark`** keeps the original dark, sparse, typography-led interface.
 - **Alternate skin:** **`retro-lcd`** is a full-app old-device interpretation with LCD glass texture, heavier divider rules, pixel / device typography, boxed transport controls, and squarer panel chrome.
 - Skins should be selected from the **home** settings menu and persist per browser / device using **`localStorage`**.
+- **Retro LCD tuning** should be edited from the **home** settings menu, apply live, and persist as a single shared Supabase-backed profile across devices when Supabase is configured. A local browser cache may be used as a temporary fallback.
 - Shared semantic tokens live in **`app/globals.css`** and should remain the primary surface for future skin work. Shared skin-aware wrappers / primitives include **`PageShell`**, **`ActionButton`**, **`EditorPanel`**, and **`LcdChrome`**.
 
 ## Session model
@@ -79,6 +80,8 @@ Supported concepts:
 - **`PUT /api/sessions`** — body: full `SessionDefinition` JSON; validates against the canonical schema; upserts into Supabase when configured (including **`sort_order`**). Used by the builder **save to Supabase**, **adjust / done**, and the **home** list **import JSON** (file) and **paste JSON** (modal) flows after client-side **`parseImportedSession`**.
 - **`PATCH /api/sessions/order`** — body: `{ session_ids: string[] }` (every session exactly once, no duplicates); updates **`sort_order`** by array index. Used by the home list when Supabase is configured.
 - **`DELETE /api/sessions/[sessionId]`** — deletes the row with that **`session_id`** from Supabase when configured. Used by the builder **delete session** flow after confirmation.
+- **`GET /api/lcd-tuning`** — returns the global retro LCD tuning payload (or defaults when no profile exists yet). Used for shared device-consistent LCD presentation.
+- **`PUT /api/lcd-tuning`** — body: `LcdTuningValues`; normalizes and upserts the singleton global retro LCD tuning profile in Supabase when configured.
 
 ## Screen requirements
 
@@ -96,7 +99,7 @@ UI:
 - subtle row layout
 - no dashboard stats
 - when Supabase is configured: **drag handle** per row (**@dnd-kit**, vertical list); row body remains a link to session detail
-- **settings cog** (same icon as the session builder) opens a dropdown with **create new session**, **import JSON**, **paste JSON**, **copy JSON schema**, and a **skin selector**; click-outside and **Escape** close the menu. **Paste JSON** opens a modal (backdrop / **Escape** / **cancel** closes): large textarea, **import** runs validation then **`PUT /api/sessions`**; failures show a bulleted list of messages (including JSON Schema paths from `parseImportedSession` or API errors).
+- **settings cog** (same icon as the session builder) opens a dropdown with **create new session**, **import JSON**, **paste JSON**, **copy JSON schema**, a **skin selector**, and when **`retro-lcd`** is active an **LCD tuning** overlay; click-outside and **Escape** close the menu. **Paste JSON** opens a modal (backdrop / **Escape** / **cancel** closes): large textarea, **import** runs validation then **`PUT /api/sessions`**; failures show a bulleted list of messages (including JSON Schema paths from `parseImportedSession` or API errors).
 
 Primary interactions:
 - tap row -> Session Detail
@@ -106,6 +109,7 @@ Primary interactions:
 - **copy JSON schema** (under settings): copies canonical schema for use with external tools (e.g. AI-generated session JSON for later import)
 - drag handle -> reorder list; order **PATCH**ed to Supabase
 - **skin selector** (under settings): switches the active UI skin immediately and persists it locally for future visits
+- **LCD tuning** (under settings, retro skin only): updates the retro display live and saves the tuning to a shared global Supabase profile so the same LCD parameters load on other devices
 - **Paused run (local only):** if the user chose **resume later** on the exit sheet, **`localStorage`** holds a snapshot for that **`session_id`** (step index). On the list, **Paused** opens **`/play/[id]?at=…`**, clears that snapshot, and starts from the saved step; **cancel** (next to **Paused**) clears the snapshot only and does not navigate. Other tabs can update the badge via the **`storage`** event.
 
 ### 2. Session Detail / Preview
@@ -241,6 +245,7 @@ UI:
 
 ## Supabase schema
 - Table **`session_definitions`**: includes **`sort_order integer not null default 0`** (see **`supabase/session_definitions.sql`**). Existing projects without the column should run **`supabase/migrate_add_sort_order.sql`** once.
+- Table **`lcd_tuning_profiles`**: singleton-style retro LCD tuning storage keyed by **`profile_key`** (see **`supabase/lcd_tuning_profiles.sql`**). The app uses the **`global`** row for shared cross-device LCD parameters.
 
 ## Implementation notes
 - Use sample local JSON when Supabase is not configured

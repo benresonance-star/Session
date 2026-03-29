@@ -241,7 +241,7 @@ function LcdMetric({
   return (
     <div className="min-w-0">
       <LcdLabel>{label}</LcdLabel>
-      <div className="skin-digit mt-1 text-4xl leading-none text-text sm:text-5xl">{value}</div>
+      <div className="skin-digit skin-digit-live skin-ghost mt-1 text-4xl leading-none text-text sm:text-5xl">{value}</div>
     </div>
   );
 }
@@ -256,7 +256,7 @@ function LcdInfoRow({
   return (
     <div className="flex items-start gap-4 text-xl sm:text-2xl">
       <div className="skin-label w-20 shrink-0 text-[11px] text-muted sm:w-24">{label}</div>
-      <div className="skin-display min-w-0 flex-1 text-text">{value}</div>
+      <div className="skin-display skin-display-live min-w-0 flex-1 text-text">{value}</div>
     </div>
   );
 }
@@ -489,7 +489,7 @@ function CircuitTimePanel({
           <PlayModeNav sessionId={sessionId} planIndex={planIndex} canGoBack={canGoBack} onBack={onBack} />
           <LcdLabel className="text-right">Circuit time</LcdLabel>
         </div>
-        <div className="skin-digit mt-8 text-center text-[5.5rem] leading-none text-text sm:text-[7rem]">
+        <div className="skin-digit skin-digit-live skin-ghost mt-8 text-center text-[5.5rem] leading-none text-text sm:text-[7rem]">
           {formatBlockCountdown(blockRemaining)}
         </div>
         {blockTimeUp ? (
@@ -515,7 +515,7 @@ function CircuitTimePanel({
             <div className="mt-8 text-center">
               <LcdLabel>Rest</LcdLabel>
             </div>
-            <div className="skin-digit mt-5 text-center text-[4.75rem] leading-none text-text sm:text-[6rem]">
+            <div className="skin-digit skin-digit-live skin-ghost mt-5 text-center text-[4.75rem] leading-none text-text sm:text-[6rem]">
               {formatRestCountdown(restRemaining)}
             </div>
             <div className="mt-8 flex justify-center">
@@ -533,10 +533,10 @@ function CircuitTimePanel({
               </LcdLabel>
             </div>
             <div className="mt-6 text-center">
-              <h1 className="skin-display text-display leading-tight">{currentExercise.title}</h1>
+              <h1 className="skin-display skin-display-live skin-ghost text-display leading-tight">{currentExercise.title}</h1>
               <Link
                 href={`/edit/${sessionId}/${currentExercise.exercise_id}?returnStep=${planIndex}`}
-                className="skin-display mt-5 inline-block text-title text-muted transition-colors hover:text-adjust"
+                className="skin-display skin-display-live mt-5 inline-block text-title text-muted transition-colors hover:text-adjust"
               >
                 {prescription}
                 {load}
@@ -706,7 +706,7 @@ function RestPanel({
           <LcdLabel>Rest</LcdLabel>
         </div>
 
-        <div className="skin-digit mt-10 text-center text-[5.5rem] leading-none text-text sm:text-[7rem]">
+        <div className="skin-digit skin-digit-live skin-ghost mt-10 text-center text-[5.5rem] leading-none text-text sm:text-[7rem]">
           {formatRestCountdown(remaining)}
         </div>
 
@@ -869,10 +869,10 @@ function TimedExercisePanel({
         </div>
 
         <div className="mt-8 text-center">
-          <h1 className="skin-display text-display leading-tight">{step.exercise.title}</h1>
+          <h1 className="skin-display skin-display-live skin-ghost text-display leading-tight">{step.exercise.title}</h1>
           <Link
             href={`/edit/${sessionId}/${step.exercise.exercise_id}?returnStep=${planIndex}`}
-            className="skin-display mt-5 inline-block text-title text-muted transition-colors hover:text-adjust"
+            className="skin-display skin-display-live mt-5 inline-block text-title text-muted transition-colors hover:text-adjust"
           >
             {prescription}
             {load}
@@ -886,7 +886,7 @@ function TimedExercisePanel({
           <LcdMetric label="Target" value={formatTargetMetric(step.exercise)} />
           <LcdMetric label="Set" value={formatSetMetric(step.set_index, step.set_total)} />
         </div>
-        <div className="skin-digit mt-8 text-center text-[5.5rem] leading-none text-text sm:text-[7rem]">
+        <div className="skin-digit skin-digit-live skin-ghost mt-8 text-center text-[5.5rem] leading-none text-text sm:text-[7rem]">
           {formatRestCountdown(remaining)}
         </div>
         {remaining <= 0 && started ? (
@@ -981,15 +981,15 @@ export function PlayScreen({
         <div className="skin-screen w-full max-w-3xl py-16">
           {empty ? (
             <>
-              <h1 className="skin-display text-display">Nothing to play</h1>
+              <h1 className="skin-display skin-display-live skin-ghost text-display">Nothing to play</h1>
               <LcdRule className="mt-8" />
               <p className="mt-8 text-2xl text-muted">Tap anywhere to return home</p>
             </>
           ) : (
             <>
-              <h1 className="skin-display text-display">Congratulations</h1>
+              <h1 className="skin-display skin-display-live skin-ghost text-display">Congratulations</h1>
               <LcdRule className="mt-8" />
-              <p className="skin-digit mt-8 text-6xl leading-none text-text sm:text-7xl">clear</p>
+              <p className="skin-digit skin-digit-live skin-ghost mt-8 text-6xl leading-none text-text sm:text-7xl">clear</p>
               <p className="mt-8 text-2xl text-muted">Tap anywhere to continue</p>
             </>
           )}
@@ -1070,10 +1070,10 @@ export function PlayScreen({
         </div>
 
         <div className="mt-8 text-center">
-          <h1 className="skin-display text-display leading-tight">{step.exercise.title}</h1>
+          <h1 className="skin-display skin-display-live skin-ghost text-display leading-tight">{step.exercise.title}</h1>
           <Link
             href={`/edit/${plan.session_id}/${step.exercise.exercise_id}?returnStep=${index}`}
-            className="skin-display mt-5 inline-block text-title text-muted transition-colors hover:text-adjust"
+            className="skin-display skin-display-live mt-5 inline-block text-title text-muted transition-colors hover:text-adjust"
           >
             {prescription}{load}
           </Link>

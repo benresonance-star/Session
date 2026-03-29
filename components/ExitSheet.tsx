@@ -38,7 +38,7 @@ export function ExitSheet({
   return (
     <PageShell width="max-w-3xl" className="text-center">
       <div className="pt-24">
-        <h1 className="skin-display text-title">exit session?</h1>
+        <h1 className="skin-display skin-display-live skin-ghost text-title">exit session?</h1>
         <LcdRule className="mt-8" />
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <LcdTransportButton type="button" onClick={handleResumeLater}>
