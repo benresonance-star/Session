@@ -121,7 +121,7 @@ export function AdjustScreen({
           ← back
         </Link>
 
-        <h1 className="skin-display skin-display-live skin-ghost mt-10 text-display">{exercise.title}</h1>
+        <h1 className="skin-display skin-display-heading skin-display-live skin-ghost mt-10 text-display">{exercise.title}</h1>
 
         {error ? <p className="mt-6 text-sm text-red-500/90">{error}</p> : null}
 

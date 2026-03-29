@@ -435,7 +435,7 @@ export function SessionList({
       />
       <div className="mx-auto max-w-xl">
         <div className="mb-10 flex items-center justify-between">
-          <h1 className="skin-display skin-display-live skin-ghost text-display">sessions</h1>
+          <h1 className="skin-display skin-display-heading skin-display-live skin-ghost text-display">sessions</h1>
           <div className="relative" ref={settingsMenuRef}>
             <button
               type="button"

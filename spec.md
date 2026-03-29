@@ -45,6 +45,7 @@ The product should feel like a calm instrument rather than a generic fitness app
 - **Alternate skin:** **`retro-lcd`** is a full-app old-device interpretation with LCD glass texture, heavier divider rules, pixel / device typography, boxed transport controls, and squarer panel chrome.
 - Skins should be selected from the **home** settings menu and persist per browser / device using **`localStorage`**.
 - **Retro LCD tuning** should be edited from the **home** settings menu, apply live, and persist as a single shared Supabase-backed profile across devices when Supabase is configured. A local browser cache may be used as a temporary fallback.
+- Large retro display headings should scale with viewport size and allow emergency intra-word wrapping so long all-caps titles do not crop inside the LCD frame on smaller devices.
 - Shared semantic tokens live in **`app/globals.css`** and should remain the primary surface for future skin work. Shared skin-aware wrappers / primitives include **`PageShell`**, **`ActionButton`**, **`EditorPanel`**, and **`LcdChrome`**.
 
 ## Session model

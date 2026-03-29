@@ -314,6 +314,10 @@ select {
     text-transform: var(--display-transform);
   }
 
+  .skin-display-heading {
+    overflow-wrap: anywhere;
+  }
+
   .skin-label {
     font-family: var(--font-label);
     letter-spacing: 0.08em;

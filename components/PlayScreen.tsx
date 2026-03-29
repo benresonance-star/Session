@@ -533,7 +533,7 @@ function CircuitTimePanel({
               </LcdLabel>
             </div>
             <div className="mt-6 text-center">
-              <h1 className="skin-display skin-display-live skin-ghost text-display leading-tight">{currentExercise.title}</h1>
+              <h1 className="skin-display skin-display-heading skin-display-live skin-ghost text-display leading-tight">{currentExercise.title}</h1>
               <Link
                 href={`/edit/${sessionId}/${currentExercise.exercise_id}?returnStep=${planIndex}`}
                 className="skin-display skin-display-live mt-5 inline-block text-title text-muted transition-colors hover:text-adjust"
@@ -869,7 +869,7 @@ function TimedExercisePanel({
         </div>
 
         <div className="mt-8 text-center">
-          <h1 className="skin-display skin-display-live skin-ghost text-display leading-tight">{step.exercise.title}</h1>
+          <h1 className="skin-display skin-display-heading skin-display-live skin-ghost text-display leading-tight">{step.exercise.title}</h1>
           <Link
             href={`/edit/${sessionId}/${step.exercise.exercise_id}?returnStep=${planIndex}`}
             className="skin-display skin-display-live mt-5 inline-block text-title text-muted transition-colors hover:text-adjust"
@@ -981,13 +981,13 @@ export function PlayScreen({
         <div className="skin-screen w-full max-w-3xl py-16">
           {empty ? (
             <>
-              <h1 className="skin-display skin-display-live skin-ghost text-display">Nothing to play</h1>
+              <h1 className="skin-display skin-display-heading skin-display-live skin-ghost text-display">Nothing to play</h1>
               <LcdRule className="mt-8" />
               <p className="mt-8 text-2xl text-muted">Tap anywhere to return home</p>
             </>
           ) : (
             <>
-              <h1 className="skin-display skin-display-live skin-ghost text-display">Congratulations</h1>
+              <h1 className="skin-display skin-display-heading skin-display-live skin-ghost text-display">Congratulations</h1>
               <LcdRule className="mt-8" />
               <p className="skin-digit skin-digit-live skin-ghost mt-8 text-6xl leading-none text-text sm:text-7xl">clear</p>
               <p className="mt-8 text-2xl text-muted">Tap anywhere to continue</p>
@@ -1070,7 +1070,7 @@ export function PlayScreen({
         </div>
 
         <div className="mt-8 text-center">
-          <h1 className="skin-display skin-display-live skin-ghost text-display leading-tight">{step.exercise.title}</h1>
+          <h1 className="skin-display skin-display-heading skin-display-live skin-ghost text-display leading-tight">{step.exercise.title}</h1>
           <Link
             href={`/edit/${plan.session_id}/${step.exercise.exercise_id}?returnStep=${index}`}
             className="skin-display skin-display-live mt-5 inline-block text-title text-muted transition-colors hover:text-adjust"

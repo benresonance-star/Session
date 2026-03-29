@@ -23,7 +23,7 @@ const config: Config = {
         adjust: 'rgb(var(--color-warning) / <alpha-value>)'
       },
       fontSize: {
-        'display': ['2.5rem', { lineHeight: '1.05', fontWeight: '600' }],
+        'display': ['clamp(1.8rem, 8vw, 2.5rem)', { lineHeight: '1.05', fontWeight: '600' }],
         'title': ['1.75rem', { lineHeight: '1.1', fontWeight: '600' }]
       },
       letterSpacing: {

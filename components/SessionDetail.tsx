@@ -41,7 +41,7 @@ export function SessionDetail({ session }: { session: SessionDefinition }): JSX.
     <PageShell width="max-w-3xl">
         <Link href="/home" className="skin-label text-[11px] text-muted hover:text-text">← sessions</Link>
 
-        <h1 className="skin-display skin-display-live skin-ghost mt-6 text-display">{session.title}</h1>
+        <h1 className="skin-display skin-display-heading skin-display-live skin-ghost mt-6 text-display">{session.title}</h1>
         <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xl text-muted">
           <span>{session.duration_minutes} min</span>
           {(session.tags ?? []).map((tag) => (
