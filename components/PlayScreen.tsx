@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { LcdLabel, LcdRule, LcdTransportButton, LcdTransportLink } from '@/components/ui/LcdChrome';
 import { clearPausedSession } from '@/lib/session-pause-storage';
+import { ExternalResourceLink } from '@/components/ui/ExternalResourceLink';
 import type { CircuitTimePlayStep, ExerciseStep, PlaybackPlan, RestStep } from '@/types/playback';
-import type { Exercise } from '@/types/session';
+import type { Exercise, ExerciseLink } from '@/types/session';
 
 const PLAY_TIMER_PREFIX = 'playTimer:';
 
@@ -212,6 +213,35 @@ function exerciseCoachBlock(exercise: Exercise): JSX.Element | null {
     return null;
   }
   return <p className="mt-4 max-w-prose whitespace-pre-wrap text-xl leading-relaxed text-muted">{c}</p>;
+}
+
+/** Session-level URL during active work steps only (not on rest). */
+function PlaySessionReferenceLink({ link }: { link?: ExerciseLink }): JSX.Element | null {
+  if (!link?.url?.trim()) {
+    return null;
+  }
+  return (
+    <div className="mt-3 flex justify-center px-2">
+      <ExternalResourceLink
+        link={link}
+        className="skin-label max-w-full truncate text-center text-[11px] uppercase tracking-wide text-accent underline-offset-4 hover:underline"
+      />
+    </div>
+  );
+}
+
+function ExerciseReferenceLink({ exercise }: { exercise: Exercise }): JSX.Element | null {
+  if (!exercise.link?.url?.trim()) {
+    return null;
+  }
+  return (
+    <div className="mt-4 flex justify-center px-2">
+      <ExternalResourceLink
+        link={exercise.link}
+        className="skin-label max-w-full truncate text-center text-[13px] text-muted underline-offset-4 hover:underline"
+      />
+    </div>
+  );
 }
 
 function formatTargetMetric(exercise: Exercise): string {
@@ -532,6 +562,7 @@ function CircuitTimePanel({
                 {step.stage_title?.toUpperCase()} {step.section_title ? `· ${step.section_title.toUpperCase()}` : ''}
               </LcdLabel>
             </div>
+            <PlaySessionReferenceLink link={plan.session_link} />
             <div className="mt-6 text-center">
               <h1 className="skin-display skin-display-heading skin-display-live skin-ghost text-display leading-tight">{currentExercise.title}</h1>
               <Link
@@ -543,6 +574,7 @@ function CircuitTimePanel({
               </Link>
               <div className="mt-3 text-lg text-adjust">tap to adjust</div>
               {exerciseCoachBlock(currentExercise)}
+              <ExerciseReferenceLink exercise={currentExercise} />
             </div>
             <LcdRule className="mt-8" />
             <div className="mt-6 grid gap-5 sm:grid-cols-2">
@@ -736,7 +768,8 @@ function TimedExercisePanel({
   nextTitle,
   onComplete,
   canGoBack,
-  onBack
+  onBack,
+  sessionLink
 }: {
   step: ExerciseStep;
   sessionId: string;
@@ -746,6 +779,7 @@ function TimedExercisePanel({
   onComplete: () => void;
   canGoBack: boolean;
   onBack: () => void;
+  sessionLink?: ExerciseLink;
 }): JSX.Element {
   if (step.exercise.prescription.mode !== 'time') {
     throw new Error('TimedExercisePanel requires time prescription');
@@ -867,6 +901,7 @@ function TimedExercisePanel({
             {step.stage_title?.toUpperCase()} {step.section_title ? `· ${step.section_title.toUpperCase()}` : ''}
           </LcdLabel>
         </div>
+        <PlaySessionReferenceLink link={sessionLink} />
 
         <div className="mt-8 text-center">
           <h1 className="skin-display skin-display-heading skin-display-live skin-ghost text-display leading-tight">{step.exercise.title}</h1>
@@ -879,6 +914,7 @@ function TimedExercisePanel({
           </Link>
           <div className="mt-3 text-lg text-adjust">tap to adjust</div>
           {exerciseCoachBlock(step.exercise)}
+          <ExerciseReferenceLink exercise={step.exercise} />
         </div>
 
         <LcdRule className="mt-8" />
@@ -1046,6 +1082,7 @@ export function PlayScreen({
         onComplete={advancePlanStep}
         canGoBack={index > 0}
         onBack={goBack}
+        sessionLink={plan.session_link}
       />
     );
   }
@@ -1068,6 +1105,7 @@ export function PlayScreen({
             {step.stage_title?.toUpperCase()} {step.section_title ? `· ${step.section_title.toUpperCase()}` : ''}
           </LcdLabel>
         </div>
+        <PlaySessionReferenceLink link={plan.session_link} />
 
         <div className="mt-8 text-center">
           <h1 className="skin-display skin-display-heading skin-display-live skin-ghost text-display leading-tight">{step.exercise.title}</h1>
@@ -1079,6 +1117,7 @@ export function PlayScreen({
           </Link>
           <div className="mt-3 text-lg text-adjust">tap to adjust</div>
           {exerciseCoachBlock(step.exercise)}
+          <ExerciseReferenceLink exercise={step.exercise} />
         </div>
 
         <LcdRule className="mt-8" />

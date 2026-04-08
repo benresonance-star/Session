@@ -1,4 +1,4 @@
-import type { BlockType, Exercise, StageId } from './session';
+import type { BlockType, Exercise, ExerciseLink, StageId } from './session';
 
 export type PlaybackStepType =
   | 'stage_start'
@@ -22,6 +22,8 @@ export type RestReason =
 export interface PlaybackPlan {
   session_id: string;
   session_title: string;
+  /** Session-level reference URL; shown in play UI during active work only. */
+  session_link?: ExerciseLink;
   estimated_duration_seconds?: number;
   steps: PlaybackStep[];
 }

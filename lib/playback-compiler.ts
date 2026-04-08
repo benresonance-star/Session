@@ -205,6 +205,7 @@ export function compilePlaybackPlan(sessionDef: import('@/types/session').Sessio
   return {
     session_id: session.session_id,
     session_title: session.title,
+    session_link: sessionDef.link,
     steps
   };
 }

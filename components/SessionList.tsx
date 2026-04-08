@@ -436,7 +436,7 @@ export function SessionList({
       <div className="mx-auto max-w-xl">
         <div className="mb-10 flex items-center justify-between">
           <h1 className="skin-display skin-display-heading skin-display-live skin-ghost text-display">sessions</h1>
-          <div className="relative" ref={settingsMenuRef}>
+          <div className="relative z-[200]" ref={settingsMenuRef}>
             <button
               type="button"
               disabled={importing || pasteSubmitting}
@@ -451,7 +451,7 @@ export function SessionList({
             {settingsMenuOpen ? (
               <div
                 role="menu"
-                className="skin-panel-solid absolute right-0 z-40 mt-1 min-w-[16rem] rounded-[var(--radius-panel)] border border-line bg-[var(--panel-solid-bg)] py-1 text-sm shadow-none"
+                className="skin-panel-solid absolute right-0 z-[201] mt-1 min-w-[16rem] rounded-[var(--radius-panel)] border border-line bg-[var(--panel-solid-bg)] py-1 text-sm shadow-none"
               >
                 <button
                   type="button"

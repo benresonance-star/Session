@@ -1,6 +1,7 @@
 import 'server-only';
 
 import sampleSession from '@/data/sample-session.json';
+import { normalizeSession } from '@/lib/normalize';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import type { SessionDefinition } from '@/types/session';
 
@@ -8,13 +9,21 @@ const TABLE = 'session_definitions';
 
 const fallbackSessions: SessionDefinition[] = [sampleSession as SessionDefinition];
 
+function safeNormalize(session: SessionDefinition): SessionDefinition {
+  try {
+    return normalizeSession(structuredClone(session)) as SessionDefinition;
+  } catch {
+    return structuredClone(session);
+  }
+}
+
 function cloneFallbackList(): SessionDefinition[] {
-  return fallbackSessions.map((session) => structuredClone(session));
+  return fallbackSessions.map((session) => safeNormalize(session));
 }
 
 function cloneFallbackSession(sessionId: string): SessionDefinition | null {
   const session = fallbackSessions.find((item) => item.session_id === sessionId);
-  return session ? structuredClone(session) : null;
+  return session ? safeNormalize(session) : null;
 }
 
 export async function listSessions(): Promise<SessionDefinition[]> {
@@ -37,7 +46,9 @@ export async function listSessions(): Promise<SessionDefinition[]> {
     return [];
   }
 
-  return data.map((row) => structuredClone(row.payload as SessionDefinition));
+  return data
+    .filter((row) => row.payload != null && typeof row.payload === 'object')
+    .map((row) => safeNormalize(row.payload as SessionDefinition));
 }
 
 export async function getSession(sessionId: string): Promise<SessionDefinition | null> {
@@ -52,5 +63,9 @@ export async function getSession(sessionId: string): Promise<SessionDefinition |
     return cloneFallbackSession(sessionId);
   }
 
-  return structuredClone(data.payload as SessionDefinition);
+  if (data.payload == null || typeof data.payload !== 'object') {
+    return cloneFallbackSession(sessionId);
+  }
+
+  return safeNormalize(data.payload as SessionDefinition);
 }

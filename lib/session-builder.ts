@@ -275,6 +275,12 @@ export function updateSessionDescription(session: SessionDefinition, description
   return next;
 }
 
+export function updateSessionLink(session: SessionDefinition, link: ExerciseLink | undefined): SessionDefinition {
+  const next = clone(session);
+  next.link = link?.url?.trim() ? { ...link, url: link.url.trim(), label: link.label?.trim() || undefined } : undefined;
+  return next;
+}
+
 export function updateSessionDuration(session: SessionDefinition, durationMinutes: number | undefined): SessionDefinition {
   const next = clone(session);
   next.duration_minutes = clampOptionalInteger(durationMinutes, 1);

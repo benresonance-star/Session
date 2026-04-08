@@ -286,7 +286,8 @@ select {
 
   .skin-screen {
     position: relative;
-    overflow: hidden;
+    /* visible so popovers/menus can extend past the bezel; textures clip via pseudo border-radius */
+    overflow: visible;
     padding: var(--screen-padding);
     border: var(--screen-border-width) solid var(--screen-outline);
     border-radius: calc(var(--radius-panel) + 0.2rem);
@@ -298,6 +299,8 @@ select {
     content: "";
     position: absolute;
     inset: 0;
+    border-radius: inherit;
+    overflow: hidden;
     pointer-events: none;
     opacity: var(--pixel-grid-opacity);
     background-image:
@@ -311,6 +314,8 @@ select {
     content: "";
     position: absolute;
     inset: 0;
+    border-radius: inherit;
+    overflow: hidden;
     pointer-events: none;
     opacity: var(--pixel-dot-opacity);
     background-image: radial-gradient(circle at center, rgb(var(--color-text) / 0.4) 0 var(--pixel-dot-size), transparent calc(var(--pixel-dot-size) + 0.25px));

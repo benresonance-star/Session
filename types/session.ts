@@ -29,6 +29,8 @@ export interface SessionDefinition {
   title: string;
   /** Multi-line optional summary of what the session targets (goals, focus, equipment); validated by session JSON schema. */
   description?: string;
+  /** Optional reference (playlist, blog, video); shown in play mode during active work steps. */
+  link?: ExerciseLink;
   tags?: string[];
   duration_minutes?: number;
   notes?: string;

@@ -43,6 +43,7 @@ import {
   updateSessionDescription,
   updateSessionDuration,
   updateSessionId,
+  updateSessionLink,
   updateSessionTags,
   updateSessionTitle,
   updateStageId,
@@ -620,12 +621,43 @@ function SessionBuilder({
               </EditorField>
             </div>
 
-            <div className="lg:col-span-2">
-              <EditorField label="reference link">
+            <div className="lg:col-span-2 grid gap-4 md:grid-cols-2">
+              <EditorField label="exercise link URL">
                 <TextInput
                   value={exercise.link?.url ?? ''}
-                  onChange={(value) => applyUpdate((current) => updateExerciseLink(current, path, value ? { url: value } : undefined))}
-                  placeholder="https://example.com/exercise"
+                  onChange={(value) =>
+                    applyUpdate((current) =>
+                      updateExerciseLink(
+                        current,
+                        path,
+                        value.trim()
+                          ? {
+                              url: value.trim(),
+                              label: exercise.link?.label?.trim() || undefined
+                            }
+                          : undefined
+                      )
+                    )
+                  }
+                  placeholder="https://…"
+                />
+              </EditorField>
+              <EditorField label="exercise link label (optional)">
+                <TextInput
+                  value={exercise.link?.label ?? ''}
+                  onChange={(value) =>
+                    applyUpdate((current) => {
+                      const url = exercise.link?.url?.trim();
+                      if (!url) {
+                        return current;
+                      }
+                      return updateExerciseLink(current, path, {
+                        url,
+                        label: value.trim() || undefined
+                      });
+                    })
+                  }
+                  placeholder="Shown instead of hostname"
                 />
               </EditorField>
             </div>
@@ -885,7 +917,7 @@ function SessionBuilder({
               {saving ? 'saving…' : 'save to Supabase'}
             </ActionButton>
           ) : null}
-          <div className="relative" ref={settingsMenuRef}>
+          <div className="relative z-[200]" ref={settingsMenuRef}>
             <button
               type="button"
               className="skin-control inline-flex items-center justify-center rounded-[var(--radius-control)] border border-border p-2 text-muted transition-colors hover:border-text/30 hover:text-text"
@@ -899,7 +931,7 @@ function SessionBuilder({
             {settingsMenuOpen ? (
               <div
                 role="menu"
-                className="skin-panel-solid absolute right-0 z-40 mt-1 min-w-[11rem] rounded-[var(--radius-panel)] border border-line bg-[var(--panel-solid-bg)] py-1 text-sm shadow-none"
+                className="skin-panel-solid absolute right-0 z-[201] mt-1 min-w-[11rem] rounded-[var(--radius-panel)] border border-line bg-[var(--panel-solid-bg)] py-1 text-sm shadow-none"
               >
                 <button
                   type="button"
@@ -1048,6 +1080,45 @@ function SessionBuilder({
                 placeholder="strength, mobility"
               />
             </EditorField>
+            <div className="lg:col-span-2 grid gap-4 md:grid-cols-2">
+              <EditorField label="session link URL">
+                <TextInput
+                  value={session.link?.url ?? ''}
+                  onChange={(value) =>
+                    applyUpdate((current) =>
+                      updateSessionLink(
+                        current,
+                        value.trim()
+                          ? {
+                              url: value.trim(),
+                              label: current.link?.label?.trim() || undefined
+                            }
+                          : undefined
+                      )
+                    )
+                  }
+                  placeholder="https://youtube.com/watch?v=… or any reference"
+                />
+              </EditorField>
+              <EditorField label="session link label (optional)">
+                <TextInput
+                  value={session.link?.label ?? ''}
+                  onChange={(value) =>
+                    applyUpdate((current) => {
+                      const url = current.link?.url?.trim();
+                      if (!url) {
+                        return current;
+                      }
+                      return updateSessionLink(current, {
+                        url,
+                        label: value.trim() || undefined
+                      });
+                    })
+                  }
+                  placeholder="Shown instead of hostname"
+                />
+              </EditorField>
+            </div>
           </div>
         </EditorPanel>
 
