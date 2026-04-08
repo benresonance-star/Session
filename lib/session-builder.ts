@@ -692,7 +692,9 @@ export function updateExerciseLink(session: SessionDefinition, path: AnyExercise
   if (!block) return next;
   const exercise = getExerciseFromBlock(block, path);
   if (!exercise) return next;
-  exercise.link = link?.url ? link : undefined;
+  exercise.link = link?.url?.trim()
+    ? { ...link, url: link.url.trim(), label: link.label?.trim() || undefined }
+    : undefined;
   return next;
 }
 

@@ -1,16 +1,6 @@
 import type { BlockType, Exercise, ExerciseLink, StageId } from './session';
 
-export type PlaybackStepType =
-  | 'stage_start'
-  | 'section_start'
-  | 'block_start'
-  | 'exercise'
-  | 'rest'
-  | 'circuit_time_play'
-  | 'block_end'
-  | 'section_end'
-  | 'stage_end'
-  | 'session_complete';
+export type PlaybackStepType = 'exercise' | 'rest' | 'circuit_time_play';
 
 export type RestReason =
   | 'exercise_rest'
@@ -40,18 +30,6 @@ export interface PlaybackStepBase {
   block_title?: string;
   block_type?: BlockType;
   step_index: number;
-}
-
-export interface StageStartStep extends PlaybackStepBase {
-  type: 'stage_start';
-}
-
-export interface SectionStartStep extends PlaybackStepBase {
-  type: 'section_start';
-}
-
-export interface BlockStartStep extends PlaybackStepBase {
-  type: 'block_start';
 }
 
 export interface ExerciseStep extends PlaybackStepBase {
@@ -89,40 +67,7 @@ export interface CircuitTimePlayStep extends PlaybackStepBase {
   rest_as_needed?: boolean;
 }
 
-export interface BlockEndStep extends PlaybackStepBase {
-  type: 'block_end';
-}
-
-export interface SectionEndStep extends PlaybackStepBase {
-  type: 'section_end';
-}
-
-export interface StageEndStep extends PlaybackStepBase {
-  type: 'stage_end';
-}
-
-export interface SessionCompleteStep extends PlaybackStepBase {
-  type: 'session_complete';
-}
-
 export type PlaybackStep =
-  | StageStartStep
-  | SectionStartStep
-  | BlockStartStep
   | ExerciseStep
   | RestStep
-  | CircuitTimePlayStep
-  | BlockEndStep
-  | SectionEndStep
-  | StageEndStep
-  | SessionCompleteStep;
-
-export type PlaybackStatus = 'idle' | 'ready' | 'playing' | 'paused' | 'completed';
-
-export interface PlaybackState {
-  status: PlaybackStatus;
-  plan: PlaybackPlan | null;
-  current_step_index: number;
-  current_step_elapsed_seconds: number;
-  is_timer_running: boolean;
-}
+  | CircuitTimePlayStep;

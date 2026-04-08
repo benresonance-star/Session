@@ -1,10 +1,11 @@
 import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 
-import { safeServiceErrorMessage } from '@/lib/safe-service-error';
-import { createSupabaseAdmin } from '@/lib/supabase/admin';
-
-const TABLE = 'session_definitions';
+import {
+  deleteStoredSession,
+  isSessionStoreUnavailableError,
+  sessionStoreErrorMessage
+} from '@/lib/session-store';
 
 export async function DELETE(
   _request: Request,
@@ -16,21 +17,12 @@ export async function DELETE(
     return NextResponse.json({ error: 'Missing session id.' }, { status: 400 });
   }
 
-  const client = createSupabaseAdmin();
-  if (!client) {
-    return NextResponse.json(
-      { error: 'Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local.' },
-      { status: 503 }
-    );
-  }
-
-  const { error } = await client.from(TABLE).delete().eq('session_id', sessionId);
-
-  if (error) {
-    return NextResponse.json(
-      { error: safeServiceErrorMessage(error.message) || 'Supabase request failed.' },
-      { status: 500 }
-    );
+  try {
+    await deleteStoredSession(sessionId);
+  } catch (error) {
+    const message = sessionStoreErrorMessage(error);
+    const status = isSessionStoreUnavailableError(error) ? 503 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 
   revalidatePath('/home');

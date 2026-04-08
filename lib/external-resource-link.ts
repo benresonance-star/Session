@@ -1,5 +1,14 @@
 import type { ExerciseLink } from '@/types/session';
 
+export interface ExternalBookmarkPreview {
+  href: string;
+  title: string;
+  subtitle?: string;
+  hostname: string;
+  thumbnailUrl?: string;
+  providerLabel: string;
+}
+
 /** Returns a safe https URL string, or null if invalid or empty. */
 export function normalizeExternalUrl(raw: string): string | null {
   const t = raw.trim();
@@ -67,5 +76,68 @@ export function externalLinkDisplayLabel(link: ExerciseLink, resolvedHref: strin
     return new URL(resolvedHref).hostname.replace(/^www\./, '');
   } catch {
     return 'link';
+  }
+}
+
+function youtubeThumbnailUrl(videoId: string): string {
+  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+}
+
+function fallbackBookmarkPreview(link: ExerciseLink, href: string): ExternalBookmarkPreview {
+  const videoId = youtubeVideoIdFromUrl(href);
+  const hostname = externalLinkDisplayLabel({ ...link, label: undefined }, href);
+  return {
+    href,
+    title: externalLinkDisplayLabel(link, href),
+    subtitle: videoId ? 'YouTube video' : undefined,
+    hostname,
+    thumbnailUrl: videoId ? youtubeThumbnailUrl(videoId) : undefined,
+    providerLabel: videoId ? 'YouTube' : hostname
+  };
+}
+
+export async function fetchExternalBookmarkPreview(link: ExerciseLink): Promise<ExternalBookmarkPreview | null> {
+  const href = normalizeExternalUrl(link.url);
+  if (!href) {
+    return null;
+  }
+
+  const videoId = youtubeVideoIdFromUrl(href);
+  if (!videoId) {
+    return fallbackBookmarkPreview(link, href);
+  }
+
+  const fallback = fallbackBookmarkPreview(link, href);
+
+  try {
+    const response = await fetch(
+      `https://www.youtube.com/oembed?url=${encodeURIComponent(href)}&format=json`,
+      {
+        next: { revalidate: 3600 },
+        signal: AbortSignal.timeout(2500)
+      }
+    );
+
+    if (!response.ok) {
+      return fallback;
+    }
+
+    const payload = (await response.json()) as {
+      title?: string;
+      author_name?: string;
+      provider_name?: string;
+      thumbnail_url?: string;
+    };
+
+    return {
+      href,
+      title: payload.title?.trim() || link.label?.trim() || fallback.title,
+      subtitle: payload.author_name?.trim() || fallback.subtitle,
+      hostname: fallback.hostname,
+      thumbnailUrl: payload.thumbnail_url?.trim() || fallback.thumbnailUrl,
+      providerLabel: payload.provider_name?.trim() || fallback.providerLabel
+    };
+  } catch {
+    return fallback;
   }
 }

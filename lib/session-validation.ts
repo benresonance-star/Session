@@ -1,65 +1,30 @@
 import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import schema from '@/schema/session-definition.schema.json';
-import type { Block, SessionDefinition, Stage } from '@/types/session';
+import { forEachExercise } from '@/lib/session-tree';
+import type { SessionDefinition } from '@/types/session';
 
 const DEFAULT_EXERCISE_TITLE_FOR_PERSISTENCE = 'Untitled Exercise';
-
-function blocksForStage(stage: Stage): Block[] {
-  const fromSections = (stage.sections ?? []).flatMap((s) => s.blocks);
-  const fromStage = stage.blocks ?? [];
-  if (fromSections.length > 0 && fromStage.length > 0) {
-    return [...fromSections, ...fromStage];
-  }
-  return fromSections.length > 0 ? fromSections : fromStage;
-}
 
 /** Deep clone; replaces whitespace-only exercise titles so JSON schema `minLength: 1` passes on save/export. */
 export function normalizeEmptyExerciseTitlesForPersistence(session: SessionDefinition): SessionDefinition {
   const next = structuredClone(session);
-  for (const stage of next.stages) {
-    for (const block of blocksForStage(stage)) {
-      if (block.block_type === 'superset') {
-        for (const pair of block.exercise_pairs) {
-          for (const ex of pair) {
-            if (!ex.title.trim()) {
-              ex.title = DEFAULT_EXERCISE_TITLE_FOR_PERSISTENCE;
-            }
-          }
-        }
-      } else {
-        for (const ex of block.exercises) {
-          if (!ex.title.trim()) {
-            ex.title = DEFAULT_EXERCISE_TITLE_FOR_PERSISTENCE;
-          }
-        }
-      }
+  forEachExercise(next, (exercise) => {
+    if (!exercise.title.trim()) {
+      exercise.title = DEFAULT_EXERCISE_TITLE_FOR_PERSISTENCE;
     }
-  }
+  });
   return next;
 }
 
 export function sessionHasCoach(session: SessionDefinition): boolean {
-  for (const stage of session.stages) {
-    for (const block of blocksForStage(stage)) {
-      if (block.block_type === 'superset') {
-        for (const pair of block.exercise_pairs) {
-          for (const ex of pair) {
-            if (ex.coach?.trim()) {
-              return true;
-            }
-          }
-        }
-      } else {
-        for (const ex of block.exercises) {
-          if (ex.coach?.trim()) {
-            return true;
-          }
-        }
-      }
+  let hasCoach = false;
+  forEachExercise(session, (exercise) => {
+    if (exercise.coach?.trim()) {
+      hasCoach = true;
     }
-  }
-  return false;
+  });
+  return hasCoach;
 }
 
 /** Normalize titles for schema, then emit `schema_version` 1.2 iff any exercise has `coach`; otherwise keep existing version. */

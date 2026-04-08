@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { LcdLabel, LcdRule, LcdTransportButton } from '@/components/ui/LcdChrome';
 import { PageShell } from '@/components/ui/PageShell';
 import { applyExerciseAdjustments, type ExerciseAdjustPatch } from '@/lib/session-apply';
-import { safeServiceErrorMessage } from '@/lib/safe-service-error';
+import { saveSessionToServer } from '@/lib/session-api-client';
 import { validateSessionDefinition } from '@/lib/session-validation';
 import type { Exercise, SessionDefinition } from '@/types/session';
 
@@ -78,32 +78,15 @@ export function AdjustScreen({
 
     setSaving(true);
     try {
-      const response = await fetch('/api/sessions', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated)
-      });
-      const contentType = response.headers.get('content-type') ?? '';
-      let payload: { errors?: string[]; error?: string } = {};
-      if (contentType.includes('application/json')) {
-        payload = (await response.json().catch(() => ({}))) as typeof payload;
-      }
-
-      if (response.status === 503) {
-        setError(
-          safeServiceErrorMessage(payload.error) ||
-            'Supabase is not configured; changes were not saved. Returning to play.'
-        );
+      const result = await saveSessionToServer(updated);
+      if (!result.ok && result.status === 503) {
+        setError(result.messages[0] || 'Supabase is not configured; changes were not saved. Returning to play.');
         router.push(playHref);
         return;
       }
 
-      if (!response.ok) {
-        if (payload.errors?.length) {
-          setError(safeServiceErrorMessage(payload.errors[0]) || 'Save failed.');
-        } else {
-          setError(safeServiceErrorMessage(payload.error) || `Save failed (${response.status}).`);
-        }
+      if (!result.ok) {
+        setError(result.messages[0] || 'Save failed.');
         return;
       }
 

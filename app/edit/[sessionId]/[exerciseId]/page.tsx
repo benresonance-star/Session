@@ -21,7 +21,7 @@ export default async function EditExercisePage({
   const exercise = findExerciseInSession(session, exerciseId);
 
   if (!exercise) {
-    return <main className="min-h-screen bg-bg text-text p-10">Exercise not found.</main>;
+    notFound();
   }
 
   const parsed = returnStepRaw != null ? Number.parseInt(returnStepRaw, 10) : NaN;

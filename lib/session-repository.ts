@@ -2,70 +2,46 @@ import 'server-only';
 
 import sampleSession from '@/data/sample-session.json';
 import { normalizeSession } from '@/lib/normalize';
-import { createSupabaseAdmin } from '@/lib/supabase/admin';
-import type { SessionDefinition } from '@/types/session';
+import {
+  getStoredSession,
+  isSessionStoreUnavailableError,
+  listStoredSessions
+} from '@/lib/session-store';
+import type { NormalizedSessionDefinition, SessionDefinition } from '@/types/session';
 
-const TABLE = 'session_definitions';
+const fallbackSessions: NormalizedSessionDefinition[] = [sampleSession as SessionDefinition].map((session) => getFallbackSession(session));
 
-const fallbackSessions: SessionDefinition[] = [sampleSession as SessionDefinition];
-
-function safeNormalize(session: SessionDefinition): SessionDefinition {
-  try {
-    return normalizeSession(structuredClone(session)) as SessionDefinition;
-  } catch {
-    return structuredClone(session);
-  }
+function getFallbackSession(session: SessionDefinition): NormalizedSessionDefinition {
+  return normalizeSession(structuredClone(session));
 }
 
-function cloneFallbackList(): SessionDefinition[] {
-  return fallbackSessions.map((session) => safeNormalize(session));
+function cloneFallbackList(): NormalizedSessionDefinition[] {
+  return fallbackSessions.map((session) => structuredClone(session));
 }
 
-function cloneFallbackSession(sessionId: string): SessionDefinition | null {
+function cloneFallbackSession(sessionId: string): NormalizedSessionDefinition | null {
   const session = fallbackSessions.find((item) => item.session_id === sessionId);
-  return session ? safeNormalize(session) : null;
+  return session ? structuredClone(session) : null;
 }
 
-export async function listSessions(): Promise<SessionDefinition[]> {
-  const client = createSupabaseAdmin();
-  if (!client) {
-    return cloneFallbackList();
+export async function listSessions(): Promise<NormalizedSessionDefinition[]> {
+  try {
+    return await listStoredSessions();
+  } catch (error) {
+    if (isSessionStoreUnavailableError(error)) {
+      return cloneFallbackList();
+    }
+    throw error;
   }
-
-  const { data, error } = await client
-    .from(TABLE)
-    .select('payload')
-    .order('sort_order', { ascending: true })
-    .order('title', { ascending: true });
-
-  if (error) {
-    return cloneFallbackList();
-  }
-
-  if (!data?.length) {
-    return [];
-  }
-
-  return data
-    .filter((row) => row.payload != null && typeof row.payload === 'object')
-    .map((row) => safeNormalize(row.payload as SessionDefinition));
 }
 
-export async function getSession(sessionId: string): Promise<SessionDefinition | null> {
-  const client = createSupabaseAdmin();
-  if (!client) {
-    return cloneFallbackSession(sessionId);
+export async function getSession(sessionId: string): Promise<NormalizedSessionDefinition | null> {
+  try {
+    return await getStoredSession(sessionId);
+  } catch (error) {
+    if (isSessionStoreUnavailableError(error)) {
+      return cloneFallbackSession(sessionId);
+    }
+    throw error;
   }
-
-  const { data, error } = await client.from(TABLE).select('payload').eq('session_id', sessionId).maybeSingle();
-
-  if (error || !data) {
-    return cloneFallbackSession(sessionId);
-  }
-
-  if (data.payload == null || typeof data.payload !== 'object') {
-    return cloneFallbackSession(sessionId);
-  }
-
-  return safeNormalize(data.payload as SessionDefinition);
 }

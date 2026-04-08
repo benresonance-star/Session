@@ -8,6 +8,14 @@ const __dirname = path.dirname(__filename);
 const nextConfig = {
   typedRoutes: false,
   outputFileTracingRoot: __dirname,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'i.ytimg.com'
+      }
+    ]
+  },
   // Avoid broken webpack vendor chunks for Supabase on the server (e.g. missing ./vendor-chunks/@supabase.js).
   serverExternalPackages: ['@supabase/supabase-js']
 };

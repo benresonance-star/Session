@@ -1,16 +1,21 @@
-import type { Block, Exercise, NormalizedSessionDefinition } from '@/types/session';
+import { normalizeSession } from '@/lib/normalize';
 import type { PlaybackPlan, PlaybackStep } from '@/types/playback';
-import { normalizeSession } from './normalize';
+import type { Block, Exercise, NormalizedSessionDefinition, Section, SessionDefinition, StageId } from '@/types/session';
 
-function pushStep(steps: PlaybackStep[], step: Record<string, unknown>): void {
-  steps.push({ ...step, step_index: steps.length } as PlaybackStep);
+type PlaybackStepInput = Omit<PlaybackStep, 'step_index'>;
+
+function pushStep<T extends PlaybackStepInput>(steps: PlaybackStep[], step: T): void {
+  steps.push({
+    ...step,
+    step_index: steps.length
+  } as unknown as PlaybackStep);
 }
 
 function compileExercise(
   steps: PlaybackStep[],
   sessionId: string,
   context: {
-    stage_id: string;
+    stage_id: StageId;
     stage_title: string;
     section_id: string;
     section_title: string;
@@ -25,7 +30,7 @@ function compileExercise(
     type: 'exercise',
     step_id: `${context.block_id}-${exercise.exercise_id}-${steps.length}`,
     session_id: sessionId,
-    stage_id: context.stage_id as any,
+    stage_id: context.stage_id,
     stage_title: context.stage_title,
     section_id: context.section_id,
     section_title: context.section_title,
@@ -41,7 +46,7 @@ function compileExercise(
       type: 'rest',
       step_id: `${context.block_id}-${exercise.exercise_id}-rest-${steps.length}`,
       session_id: sessionId,
-      stage_id: context.stage_id as any,
+      stage_id: context.stage_id,
       stage_title: context.stage_title,
       section_id: context.section_id,
       section_title: context.section_title,
@@ -55,12 +60,20 @@ function compileExercise(
   }
 }
 
-function compileBlock(steps: PlaybackStep[], session: NormalizedSessionDefinition, context: {
-  stage_id: string; stage_title: string; section_id: string; section_title: string;
-}, block: Block): void {
+function compileBlock(
+  steps: PlaybackStep[],
+  session: NormalizedSessionDefinition,
+  context: {
+    stage_id: StageId;
+    stage_title: string;
+    section_id: string;
+    section_title: string;
+  },
+  block: Block
+): void {
   const base = {
     session_id: session.session_id,
-    stage_id: context.stage_id as any,
+    stage_id: context.stage_id,
     stage_title: context.stage_title,
     section_id: context.section_id,
     section_title: context.section_title,
@@ -171,41 +184,50 @@ function compileBlock(steps: PlaybackStep[], session: NormalizedSessionDefinitio
   }
 }
 
-export function compilePlaybackPlan(sessionDef: import('@/types/session').SessionDefinition): PlaybackPlan {
+function compileSection(
+  steps: PlaybackStep[],
+  session: NormalizedSessionDefinition,
+  stage: { stage_id: StageId; title: string },
+  section: Section
+): void {
+  for (const block of section.blocks) {
+    compileBlock(steps, session, {
+      stage_id: stage.stage_id,
+      stage_title: stage.title,
+      section_id: section.section_id,
+      section_title: section.title
+    }, block);
+  }
+
+  if (section.rest_after_section_seconds) {
+    pushStep(steps, {
+      type: 'rest',
+      step_id: `${section.section_id}-rest`,
+      session_id: session.session_id,
+      stage_id: stage.stage_id,
+      stage_title: stage.title,
+      section_id: section.section_id,
+      section_title: section.title,
+      reason: 'section_rest',
+      duration_seconds: section.rest_after_section_seconds
+    });
+  }
+}
+
+export function compilePlaybackPlan(sessionDef: SessionDefinition | NormalizedSessionDefinition): PlaybackPlan {
   const session = normalizeSession(sessionDef);
   const steps: PlaybackStep[] = [];
 
   for (const stage of session.stages) {
     for (const section of stage.sections) {
-      for (const block of section.blocks) {
-        compileBlock(steps, session, {
-          stage_id: stage.stage_id,
-          stage_title: stage.title,
-          section_id: section.section_id,
-          section_title: section.title
-        }, block);
-      }
-
-      if (section.rest_after_section_seconds) {
-        pushStep(steps, {
-          type: 'rest',
-          step_id: `${section.section_id}-rest`,
-          session_id: session.session_id,
-          stage_id: stage.stage_id,
-          stage_title: stage.title,
-          section_id: section.section_id,
-          section_title: section.title,
-          reason: 'section_rest',
-          duration_seconds: section.rest_after_section_seconds
-        });
-      }
+      compileSection(steps, session, stage, section);
     }
   }
 
   return {
     session_id: session.session_id,
     session_title: session.title,
-    session_link: sessionDef.link,
+    session_link: session.link,
     steps
   };
 }
